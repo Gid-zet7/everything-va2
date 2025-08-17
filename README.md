@@ -1,11 +1,10 @@
 ![Full Stack Chat PDF Clone](https://github.com/user-attachments/assets/03580ec6-99f0-4f3e-8a0d-141e15d2e17b)
 
-[Link to YouTube Tutorial]([https://www.youtube.com/watch?v=bZFedu-0emE](https://youtu.be/Qm7-7PnszM4))
+[Link to YouTube Tutorial](<[https://www.youtube.com/watch?v=bZFedu-0emE](https://youtu.be/Qm7-7PnszM4)>)
 
 # Overview
 
 Welcome to this comprehensive full-stack tutorial where we build and deploy a fully featured AI powered email client using NextJS 14. Join me as we build an entire project from the ground up and seamlessly deploy it to Vercel 🚀. The application also includes a subscription feature, where users can subscribe to access premium features. The subscription process is handled using Stripe for payments and webhooks for event processing.
-
 
 # Technologies and Frameworks
 
@@ -13,7 +12,7 @@ Welcome to this comprehensive full-stack tutorial where we build and deploy a fu
 - React
 - TypeScript
 - Tailwind CSS
-- Clerk
+- Kinde Auth
 - Prisma ORM
 - PostgreSQL
 - AWS SDK
@@ -24,7 +23,7 @@ Welcome to this comprehensive full-stack tutorial where we build and deploy a fu
 - OpenAI Edge
 - Neon Database Serverless
 - @tanstack/react-query
-- @clerk/nextjs
+- @kinde-oss/kinde-auth-nextjs
 - clsx
 - tailwind-merge
 
@@ -58,20 +57,18 @@ Follow the steps below to install and setup the project:
    npm install
    ```
 
-   This will install all the dependencies listed in the `package.json` file, including Next.js, React, React DOM, Axios, Stripe, Tailwind CSS, and other specific dependencies such as "@aws-sdk/client-s3" and "@clerk/nextjs".
+   This will install all the dependencies listed in the `package.json` file, including Next.js, React, React DOM, Axios, Stripe, Tailwind CSS, and other specific dependencies such as "@aws-sdk/client-s3" and "@kinde-oss/kinde-auth-nextjs".
 
 5. **Setup environment variables**
 
-    Create a `.env` file in the root directory of your project and add the required environment variables.
+   Create a `.env` file in the root directory of your project and add the required environment variables. See `KINDE_SETUP.md` for detailed instructions on setting up Kinde Auth.
 
 6. **Run the project**
 
-    Now, you can run the project using the following command:
+   Now, you can run the project using the following command:
 
-    ```bash
-    npm run dev
-    ```
+   ```bash
+   npm run dev
+   ```
 
-    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-
+   Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

@@ -11,7 +11,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "@/server/db";
-import { auth } from "@clerk/nextjs/server";
+import { getKindeServerSession } from "@/lib/kinde";
 
 /**
  * 1. CONTEXT
@@ -26,7 +26,7 @@ import { auth } from "@clerk/nextjs/server";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const user = await auth()
+  const { user } = await getKindeServerSession();
   return {
     auth: user,
     db,
@@ -100,10 +100,12 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 });
 
 const isAuth = t.middleware(({ next, ctx }) => {
-  if (!ctx.auth?.userId) {
+  if (!ctx.auth?.id) {
     throw new Error("Unauthorized");
   }
-  return next({ ctx: { ...ctx, auth: ctx.auth! as Required<typeof ctx.auth> } });
+  return next({
+    ctx: { ...ctx, auth: ctx.auth! as Required<typeof ctx.auth> },
+  });
 });
 
 /**
