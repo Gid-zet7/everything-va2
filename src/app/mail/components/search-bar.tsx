@@ -35,7 +35,7 @@ const SearchBar = () => {
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [setIsSearching, searchValue, isSearching, document.activeElement]);
+  }, [setIsSearching, searchValue, isSearching]);
 
   return (
     <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">

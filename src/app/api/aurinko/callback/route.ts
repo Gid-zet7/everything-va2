@@ -6,10 +6,11 @@ import axios from "axios";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const GET = async (req: NextRequest) => {
-  const { user } = await getKindeServerSession();
+  const { getUser } = await getKindeServerSession();
+  const user = await getUser();
   if (!user?.id)
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  const userId = user.id;
+  const userId = user.id as string;
 
   const params = req.nextUrl.searchParams;
   const status = params.get("status");

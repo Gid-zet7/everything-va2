@@ -6,6 +6,7 @@ import ComposeButton from "@/app/mail/components/compose-button";
 import WebhookDebugger from "@/app/mail/components/webhook-debugger";
 import TopAccountSwitcher from "./top-account-switcher";
 import MailClient from "@/app/mail/mail-client";
+import AuthoriseButton from "@/components/authorise-button";
 
 interface MailPageClientProps {
   defaultLayout: number[] | undefined;
@@ -34,6 +35,7 @@ export default function MailPageClient({
           </div>
           <ModeToggle />
           <ComposeButton />
+          <AuthoriseButton />
           {process.env.NODE_ENV === "development" && <WebhookDebugger />}
         </div>
       </div>

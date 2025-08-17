@@ -10,6 +10,7 @@ export const getAurinkoAuthorizationUrl = async (
   serviceType: "Google" | "Office365",
 ) => {
   const user = await getKindeUser();
+
   if (!user?.id) throw new Error("User not found");
   const userId = user.id;
 

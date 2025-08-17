@@ -1,20 +1,21 @@
 import Account from "@/lib/account";
 import { syncEmailsToDatabase } from "@/lib/sync-to-db";
 import { db } from "@/server/db";
-import { getKindeUser } from "@/lib/kinde";
+import { getKindeServerSession } from "@/lib/kinde";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const maxDuration = 300;
 
 export const POST = async (req: NextRequest) => {
-  const { user } = await getKindeUser();
-  if (!user) {
+  const { getUser } = await getKindeServerSession();
+  const user = await getUser();
+  if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
   const { accountId } = body;
-  const userId = user.userId;
+  const userId = user.id as string;
   if (!accountId)
     return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
 

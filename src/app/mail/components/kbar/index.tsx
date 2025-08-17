@@ -1,4 +1,5 @@
 "use client";
+import React from "react";
 import {
   type Action,
   KBarProvider,
@@ -89,6 +90,16 @@ export default function KBar({ children }: { children: React.ReactNode }) {
   );
 }
 const ActualComponent = ({ children }: { children: React.ReactNode }) => {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <>{children}</>;
+  }
+
   useAccountSwitching();
   useThemeSwitching();
 
