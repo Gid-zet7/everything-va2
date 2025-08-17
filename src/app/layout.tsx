@@ -4,9 +4,7 @@ import Kbar from "@/app/mail/components/kbar";
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
 
-import { TRPCReactProvider } from "@/trpc/react";
-import { ThemeProvider } from "@/components/theme-provicer";
-import { Toaster } from "sonner";
+import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "Normal Human",
@@ -19,17 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <TRPCReactProvider>
-            <Kbar>{children}</Kbar>
-          </TRPCReactProvider>
-          <Toaster />
-        </ThemeProvider>
+        <Providers>
+          <Kbar>{children}</Kbar>
+        </Providers>
       </body>
     </html>
   );
