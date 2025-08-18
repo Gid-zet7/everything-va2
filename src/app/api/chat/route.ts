@@ -4,7 +4,7 @@ import { Message, OpenAIStream, StreamingTextResponse } from "ai";
 import { NextResponse } from "next/server";
 import { OramaManager } from "@/lib/orama";
 import { db } from "@/server/db";
-import { getKindeServerSession } from "@/lib/kinde";
+import { getKindeUserForAPI } from "@/lib/kinde";
 import { getSubscriptionStatus } from "@/lib/stripe-actions";
 import { FREE_CREDITS_PER_DAY } from "@/app/constants";
 
@@ -17,7 +17,7 @@ const openai = new OpenAIApi(config);
 
 export async function POST(req: Request) {
   try {
-    const { user } = await getKindeServerSession();
+    const user = await getKindeUserForAPI();
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

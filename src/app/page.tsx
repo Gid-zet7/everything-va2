@@ -11,11 +11,12 @@ import {
 import Image from "next/image";
 
 const LandingPage = async () => {
-  const accessToken = await getKindeServerSession();
-  if (accessToken) {
-    console.log(accessToken);
-    return redirect("/mail");
-  }
+  const { getUser } = await getKindeServerSession();
+  const user = await getUser();
+  // if (user?.id) {
+
+  //   return redirect("/mail");
+  // }
   return (
     <>
       {/* <div className="h-screen w-full bg-white absolute inset-0">

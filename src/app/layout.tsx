@@ -1,5 +1,4 @@
 import "@/styles/globals.css";
-import Kbar from "@/app/mail/components/kbar";
 
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
@@ -17,9 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
       <body>
-        <Providers>
-          <Kbar>{children}</Kbar>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

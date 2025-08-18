@@ -35,16 +35,60 @@ export function Mail({
   const [done, setDone] = useLocalStorage("normalhuman-done", false);
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
 
+  // Clean up corrupted cookies on mount
+  React.useEffect(() => {
+    try {
+      // Check if the layout cookie is valid
+      const layoutCookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("react-resizable-panels:layout:mail="));
+
+      if (layoutCookie) {
+        const layoutValue = layoutCookie.split("=")[1];
+        if (layoutValue) {
+          JSON.parse(layoutValue); // This will throw if invalid
+        }
+      }
+    } catch (error) {
+      console.warn("Clearing corrupted layout cookie");
+      document.cookie =
+        "react-resizable-panels:layout:mail=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    }
+
+    try {
+      // Check if the collapsed cookie is valid
+      const collapsedCookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("react-resizable-panels:collapsed="));
+
+      if (collapsedCookie) {
+        const collapsedValue = collapsedCookie.split("=")[1];
+        if (collapsedValue) {
+          JSON.parse(collapsedValue); // This will throw if invalid
+        }
+      }
+    } catch (error) {
+      console.warn("Clearing corrupted collapsed cookie");
+      document.cookie =
+        "react-resizable-panels:collapsed=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+    }
+  }, []);
+
   return (
     <TooltipProvider delayDuration={0}>
       <ResizablePanelGroup
         direction="horizontal"
         onLayout={(sizes: number[]) => {
-          document.cookie = `react-resizable-panels:layout:mail=${JSON.stringify(
-            sizes,
-          )}`;
+          try {
+            document.cookie = `react-resizable-panels:layout:mail=${JSON.stringify(
+              sizes,
+            )}`;
+          } catch (error) {
+            console.warn("Failed to save layout cookie:", error);
+          }
         }}
         className="h-full min-h-screen items-stretch"
+        id="mail"
       >
         <ResizablePanel
           defaultSize={defaultLayout[0]}
@@ -54,15 +98,23 @@ export function Mail({
           maxSize={40}
           onCollapse={() => {
             setIsCollapsed(true);
-            document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-              true,
-            )}`;
+            try {
+              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
+                true,
+              )}`;
+            } catch (error) {
+              console.warn("Failed to save collapsed cookie:", error);
+            }
           }}
           onResize={() => {
             setIsCollapsed(false);
-            document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
-              false,
-            )}`;
+            try {
+              document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
+                false,
+              )}`;
+            } catch (error) {
+              console.warn("Failed to save collapsed cookie:", error);
+            }
           }}
           className={cn(
             isCollapsed &&

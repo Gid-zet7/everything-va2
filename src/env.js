@@ -17,6 +17,9 @@ export const env = createEnv({
     KINDE_SITE_URL: z.string().url(),
     KINDE_POST_LOGOUT_REDIRECT_URL: z.string().url(),
     KINDE_POST_LOGIN_REDIRECT_URL: z.string().url(),
+    AURINKO_CLIENT_ID: z.string().min(1),
+    AURINKO_CLIENT_SECRET: z.string().min(1),
+    AURINKO_SIGNING_SECRET: z.string().min(1),
   },
 
   /**
@@ -28,6 +31,7 @@ export const env = createEnv({
     NEXT_PUBLIC_KINDE_CLIENT_ID: z.string().min(1),
     NEXT_PUBLIC_KINDE_ISSUER_URL: z.string().url(),
     NEXT_PUBLIC_KINDE_SITE_URL: z.string().url(),
+    NEXT_PUBLIC_URL: z.string().url().optional(),
   },
 
   /**
@@ -43,9 +47,13 @@ export const env = createEnv({
     KINDE_SITE_URL: process.env.KINDE_SITE_URL,
     KINDE_POST_LOGOUT_REDIRECT_URL: process.env.KINDE_POST_LOGOUT_REDIRECT_URL,
     KINDE_POST_LOGIN_REDIRECT_URL: process.env.KINDE_POST_LOGIN_REDIRECT_URL,
+    AURINKO_CLIENT_ID: process.env.AURINKO_CLIENT_ID,
+    AURINKO_CLIENT_SECRET: process.env.AURINKO_CLIENT_SECRET,
+    AURINKO_SIGNING_SECRET: process.env.AURINKO_SIGNING_SECRET,
     NEXT_PUBLIC_KINDE_CLIENT_ID: process.env.NEXT_PUBLIC_KINDE_CLIENT_ID,
     NEXT_PUBLIC_KINDE_ISSUER_URL: process.env.NEXT_PUBLIC_KINDE_ISSUER_URL,
     NEXT_PUBLIC_KINDE_SITE_URL: process.env.NEXT_PUBLIC_KINDE_SITE_URL,
+    NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

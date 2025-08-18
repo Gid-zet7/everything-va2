@@ -7,6 +7,8 @@ import WebhookDebugger from "@/app/mail/components/webhook-debugger";
 import TopAccountSwitcher from "./top-account-switcher";
 import MailClient from "@/app/mail/mail-client";
 import AuthoriseButton from "@/components/authorise-button";
+import Kbar from "@/app/mail/components/kbar";
+import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
 
 interface MailPageClientProps {
   defaultLayout: number[] | undefined;
@@ -20,18 +22,12 @@ export default function MailPageClient({
   navCollapsedSize,
 }: MailPageClientProps) {
   return (
-    <>
+    <Kbar>
       <div className="absolute bottom-4 left-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm">Guest User</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => console.log("Logout clicked")}
-            >
-              Logout
-            </Button>
+            <LogoutLink className="text-sm">Logout </LogoutLink>
           </div>
           <ModeToggle />
           <ComposeButton />
@@ -48,6 +44,6 @@ export default function MailPageClient({
         defaultCollapsed={defaultCollapsed}
         navCollapsedSize={navCollapsedSize}
       />
-    </>
+    </Kbar>
   );
 }

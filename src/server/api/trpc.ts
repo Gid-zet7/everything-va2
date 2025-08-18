@@ -11,7 +11,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "@/server/db";
-import { getKindeServerSession } from "@/lib/kinde";
+import { getKindeUserForAPI } from "@/lib/kinde";
 
 /**
  * 1. CONTEXT
@@ -26,12 +26,22 @@ import { getKindeServerSession } from "@/lib/kinde";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const { user } = await getKindeServerSession();
-  return {
-    auth: user,
-    db,
-    ...opts,
-  };
+  try {
+    const user = await getKindeUserForAPI();
+    console.log("tRPC context user:", user);
+    return {
+      auth: user,
+      db,
+      ...opts,
+    };
+  } catch (error) {
+    console.error("Error getting user in tRPC context:", error);
+    return {
+      auth: null,
+      db,
+      ...opts,
+    };
+  }
 };
 
 /**

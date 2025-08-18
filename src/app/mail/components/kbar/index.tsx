@@ -12,7 +12,7 @@ import {
 import RenderResults from "./RenderResult";
 import { HomeIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import { useLocalStorage } from "usehooks-ts";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import useAccountSwitching from "./use-account-switching";
 import useThemeSwitching from "./use-theme-switching";
 import { useAtom } from "jotai";
@@ -20,6 +20,18 @@ import { isSearchingAtom } from "@/lib/atoms";
 import { useThread } from "../../use-thread";
 
 export default function KBar({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render anything during SSR
+  if (typeof window === "undefined") {
+    return <>{children}</>;
+  }
+
+  // Always call hooks in the same order
   const [isSearching, setIsSearching] = useAtom(isSearchingAtom);
   const [_, setTab] = useLocalStorage(`normalhuman-tab`, "inbox");
   const [threadId, setThreadId] = useThread();
@@ -85,38 +97,37 @@ export default function KBar({ children }: { children: React.ReactNode }) {
   ];
   return (
     <KBarProvider actions={actions}>
-      <ActualComponent>{children}</ActualComponent>
+      <ActualComponent mounted={mounted}>{children}</ActualComponent>
     </KBarProvider>
   );
 }
-const ActualComponent = ({ children }: { children: React.ReactNode }) => {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+const ActualComponent = ({
+  children,
+  mounted,
+}: {
+  children: React.ReactNode;
+  mounted: boolean;
+}) => {
+  // Always call hooks, but conditionally render based on mounted state
   useAccountSwitching();
   useThemeSwitching();
 
   return (
     <>
-      <KBarPortal>
-        <KBarPositioner className="scrollbar-hide fixed inset-0 z-[99999] bg-black/40 !p-0 backdrop-blur-sm dark:bg-black/60">
-          <KBarAnimator className="relative !mt-64 w-full max-w-[600px] !-translate-y-12 overflow-hidden rounded-lg border bg-white text-foreground shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-            <div className="bg-white dark:bg-gray-800">
-              <div className="border-x-0 border-b-2 dark:border-gray-700">
-                <KBarSearch className="w-full border-none bg-white px-6 py-4 text-lg outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 dark:bg-gray-800" />
+      {mounted && (
+        <KBarPortal>
+          <KBarPositioner className="scrollbar-hide fixed inset-0 z-[99999] bg-black/40 !p-0 backdrop-blur-sm dark:bg-black/60">
+            <KBarAnimator className="relative !mt-64 w-full max-w-[600px] !-translate-y-12 overflow-hidden rounded-lg border bg-white text-foreground shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+              <div className="bg-white dark:bg-gray-800">
+                <div className="border-x-0 border-b-2 dark:border-gray-700">
+                  <KBarSearch className="w-full border-none bg-white px-6 py-4 text-lg outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 dark:bg-gray-800" />
+                </div>
+                <RenderResults />
               </div>
-              <RenderResults />
-            </div>
-          </KBarAnimator>
-        </KBarPositioner>
-      </KBarPortal>
+            </KBarAnimator>
+          </KBarPositioner>
+        </KBarPortal>
+      )}
       {children}
     </>
   );
