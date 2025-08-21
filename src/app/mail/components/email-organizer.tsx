@@ -433,9 +433,7 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
                           : ""
                       }`}
                       onClick={() => {
-                        const threadId = email.thread?.id;
-                        console.log("EmailOrganizer: Setting threadId to:", threadId);
-                        setSelectedThreadId(threadId === null ? undefined : threadId);
+                        setSelectedThreadId(email.thread?.id ?? undefined);
                       }}
                     >
                       <div className="flex items-start justify-between">
@@ -481,9 +479,9 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const threadId = email.thread?.id;
-                                console.log("EmailOrganizer: Setting threadId to (button):", threadId);
-                                setSelectedThreadId(threadId === null ? undefined : threadId);
+                                setSelectedThreadId(
+                                  email.thread?.id ?? undefined,
+                                );
                               }}
                               className="h-8 w-8 p-0"
                             >

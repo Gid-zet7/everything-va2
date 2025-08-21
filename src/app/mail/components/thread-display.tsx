@@ -55,15 +55,6 @@ export function ThreadDisplay() {
 
   const [accountId] = useLocalStorage("accountId", "");
 
-  // Debug logging
-  console.log("ThreadDisplay debug:", {
-    threadId,
-    accountId,
-    threadsLength: threads?.length,
-    _thread: !!_thread,
-    isSearching,
-  });
-
   const { data: foundThread } = api.mail.getThreadById.useQuery(
     {
       accountId: accountId,
