@@ -8,13 +8,15 @@ import { useDebounceValue, useLocalStorage } from "usehooks-ts";
 import useThreads from "../use-threads";
 import { useThread } from "../use-thread";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const SearchDisplay = () => {
   const [searchValue, setSearchValue] = useAtom(searchValueAtom);
   const [isSearching, setIsSearching] = useAtom(isSearchingAtom);
   const [_, setThreadId] = useThread();
   const search = api.search.search.useMutation();
+  const populateIndex = api.search.populateIndex.useMutation();
 
   const [debouncedSearch] = useDebounceValue(searchValue, 500);
   const [accountId, setAccountId] = useLocalStorage("accountId", "");
@@ -24,6 +26,25 @@ const SearchDisplay = () => {
     console.log({ accountId, debouncedSearch });
     search.mutate({ accountId, query: debouncedSearch });
   }, [debouncedSearch, accountId]);
+
+  const handlePopulateIndex = async () => {
+    if (!accountId) return;
+
+    try {
+      const result = await populateIndex.mutateAsync({
+        accountId,
+        skipEmbeddings: false, // Set to true if you want to skip embeddings for faster indexing
+      });
+      toast.success(`Successfully indexed ${result.indexedCount} emails!`);
+      // Retry the search after indexing
+      if (debouncedSearch) {
+        search.mutate({ accountId, query: debouncedSearch });
+      }
+    } catch (error) {
+      toast.error("Failed to populate search index");
+      console.error(error);
+    }
+  };
 
   return (
     <div className="max-h-[calc(100vh-50px)] overflow-y-scroll p-4">
@@ -36,7 +57,26 @@ const SearchDisplay = () => {
         )}
       </div>
       {search.data?.hits.length === 0 ? (
-        <p>No results found.</p>
+        <div className="flex flex-col items-center gap-4 py-8">
+          <p className="text-gray-500">No results found.</p>
+          <Button
+            onClick={handlePopulateIndex}
+            disabled={populateIndex.isPending}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            {populateIndex.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Database className="size-4" />
+            )}
+            {populateIndex.isPending ? "Indexing..." : "Populate Search Index"}
+          </Button>
+          <p className="max-w-sm text-center text-xs text-gray-400">
+            This will index your emails to enable full-text search. This may
+            take a few moments.
+          </p>
+        </div>
       ) : (
         <ul className="flex flex-col gap-2">
           {search.data?.hits.map((hit) => (

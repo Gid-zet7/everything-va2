@@ -28,7 +28,7 @@ import { getKindeUserForAPI } from "@/lib/kinde";
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   try {
     const user = await getKindeUserForAPI();
-    console.log("tRPC context user:", user);
+    // console.log("tRPC context user:", user);
     return {
       auth: user,
       db,

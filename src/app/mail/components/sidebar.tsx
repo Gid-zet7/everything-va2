@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Trash2,
   Users2,
+  FolderOpen,
 } from "lucide-react";
 
 import { useLocalStorage } from "usehooks-ts";
@@ -70,6 +71,12 @@ const SideBar = ({ isCollapsed }: Props) => {
             label: sentThreads?.toString() || "0",
             icon: Send,
             variant: tab === "sent" ? "default" : "ghost",
+          },
+          {
+            title: "Organizer",
+            label: "",
+            icon: FolderOpen,
+            variant: tab === "organizer" ? "default" : "ghost",
           },
         ]}
       />

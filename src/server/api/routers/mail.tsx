@@ -7,6 +7,7 @@ import { getEmailDetails } from "@/lib/aurinko";
 import type { Prisma } from "@prisma/client";
 import { emailAddressSchema } from "@/lib/types";
 import { FREE_CREDITS_PER_DAY } from "@/app/constants";
+import { EmailOrganizer } from "@/lib/email-organizer";
 
 export const authoriseAccountAccess = async (
   accountId: string,
@@ -441,4 +442,286 @@ export const mailRouter = createTRPCRouter({
       remainingCredits,
     };
   }),
+
+  // Email Organization Endpoints
+  organizeEmails: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+        autoClassify: z.boolean().optional(),
+        createCategories: z.boolean().optional(),
+        applyRules: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      return await EmailOrganizer.organizeEmails({
+        userId: ctx.auth.id,
+        accountId: account.id,
+        autoClassify: input.autoClassify,
+        createCategories: input.createCategories,
+        applyRules: input.applyRules,
+      });
+    }),
+
+  getOrganizedEmails: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+        category: z.string().optional(),
+        priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+        status: z
+          .enum(["unread", "read", "archived", "flagged", "snoozed"])
+          .optional(),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      return await EmailOrganizer.getOrganizedEmails(ctx.auth.id, account.id, {
+        category: input.category,
+        priority: input.priority,
+        status: input.status,
+        search: input.search,
+      });
+    }),
+
+  getEmailCategories: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      return await ctx.db.emailCategory.findMany({
+        where: {
+          userId: ctx.auth.id,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+    }),
+
+  getEmailStats: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      return await EmailOrganizer.getEmailStats(ctx.auth.id, account.id);
+    }),
+
+  createEmailRule: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+        name: z.string(),
+        description: z.string().optional(),
+        conditions: z.array(
+          z.object({
+            field: z.string(),
+            operator: z.string(),
+            value: z.any(),
+          }),
+        ),
+        actions: z.array(
+          z.object({
+            type: z.string(),
+            value: z.any(),
+          }),
+        ),
+        priority: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      return await ctx.db.emailRule.create({
+        data: {
+          userId: ctx.auth.id,
+          name: input.name,
+          description: input.description,
+          conditions: input.conditions,
+          actions: input.actions,
+          priority: input.priority || 0,
+        },
+      });
+    }),
+
+  getEmailRules: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      return await ctx.db.emailRule.findMany({
+        where: {
+          userId: ctx.auth.id,
+        },
+        orderBy: {
+          priority: "desc",
+        },
+      });
+    }),
+
+  updateEmailOrganization: protectedProcedure
+    .input(
+      z.object({
+        emailId: z.string(),
+        accountId: z.string(),
+        categoryId: z.string().optional(),
+        priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+        status: z
+          .enum(["unread", "read", "archived", "flagged", "snoozed"])
+          .optional(),
+        customLabels: z.array(z.string()).optional(),
+        notes: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      // Verify the email belongs to this account
+      const email = await ctx.db.email.findFirst({
+        where: {
+          id: input.emailId,
+          thread: {
+            accountId: account.id,
+          },
+        },
+      });
+
+      if (!email) {
+        throw new Error("Email not found or access denied");
+      }
+
+      // Update the email
+      const updateData: any = {};
+
+      if (input.categoryId !== undefined) {
+        updateData.categoryId = input.categoryId || null;
+      }
+
+      if (input.priority !== undefined) {
+        updateData.priority = input.priority;
+      }
+
+      if (input.status !== undefined) {
+        updateData.status = input.status;
+      }
+
+      if (input.customLabels !== undefined) {
+        updateData.customLabels = input.customLabels;
+      }
+
+      // Update or create email notes
+      if (input.notes !== undefined) {
+        // You might want to create a separate EmailNotes table for this
+        // For now, we'll store it in a custom field or use the existing structure
+        updateData.notes = input.notes;
+      }
+
+      return await ctx.db.email.update({
+        where: { id: input.emailId },
+        data: updateData,
+      });
+    }),
+
+  bulkUpdateEmails: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+        emailIds: z.array(z.string()),
+        categoryId: z.string().optional(),
+        priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+        status: z
+          .enum(["unread", "read", "archived", "flagged", "snoozed"])
+          .optional(),
+        customLabels: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      // Verify all emails belong to this account
+      const emails = await ctx.db.email.findMany({
+        where: {
+          id: { in: input.emailIds },
+          thread: {
+            accountId: account.id,
+          },
+        },
+      });
+
+      if (emails.length !== input.emailIds.length) {
+        throw new Error("Some emails not found or access denied");
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+
+      if (input.categoryId !== undefined) {
+        updateData.categoryId = input.categoryId || null;
+      }
+
+      if (input.priority !== undefined) {
+        updateData.priority = input.priority;
+      }
+
+      if (input.status !== undefined) {
+        updateData.status = input.status;
+      }
+
+      if (input.customLabels !== undefined) {
+        updateData.customLabels = input.customLabels;
+      }
+
+      // Bulk update emails
+      const result = await ctx.db.email.updateMany({
+        where: {
+          id: { in: input.emailIds },
+          thread: {
+            accountId: account.id,
+          },
+        },
+        data: updateData,
+      });
+
+      return { updatedCount: result.count };
+    }),
 });

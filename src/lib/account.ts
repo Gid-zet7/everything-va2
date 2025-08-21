@@ -35,7 +35,7 @@ class Account {
   async createSubscription() {
     const webhookUrl =
       process.env.NODE_ENV === "development"
-        ? "https://giant-lions-lead.loca.lt"
+        ? "https://simplified-bl-fed-gale.trycloudflare.com"
         : process.env.NEXT_PUBLIC_URL;
     const res = await axios.post(
       "https://api.aurinko.io/v1/subscriptions",

@@ -20,6 +20,7 @@ import SearchBar from "./search-bar";
 import { isSearchingAtom } from "@/lib/atoms";
 import { useAtom } from "jotai";
 import AskAI from "./ask-ai";
+import { EmailOrganizer } from "./email-organizer";
 
 interface MailProps {
   defaultLayout: number[] | undefined;
@@ -33,6 +34,8 @@ export function Mail({
   navCollapsedSize,
 }: MailProps) {
   const [done, setDone] = useLocalStorage("normalhuman-done", false);
+  const [tab] = useLocalStorage("normalhuman-tab", "inbox");
+  const [accountId] = useLocalStorage("accountId", "");
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
 
   // Clean up corrupted cookies on mount
@@ -138,43 +141,49 @@ export function Mail({
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
-          <Tabs
-            defaultValue="inbox"
-            value={done ? "done" : "inbox"}
-            onValueChange={(tab) => {
-              if (tab === "done") {
-                setDone(true);
-              } else {
-                setDone(false);
-              }
-            }}
-          >
-            <div className="flex items-center px-4 py-2">
-              <h1 className="text-xl font-bold">Inbox</h1>
-              <TabsList className="ml-auto">
-                <TabsTrigger
-                  value="inbox"
-                  className="text-zinc-600 dark:text-zinc-200"
-                >
-                  Inbox
-                </TabsTrigger>
-                <TabsTrigger
-                  value="done"
-                  className="text-zinc-600 dark:text-zinc-200"
-                >
-                  Done
-                </TabsTrigger>
-              </TabsList>
+          {tab === "organizer" ? (
+            <div className="h-full overflow-auto">
+              <EmailOrganizer accountId={accountId} />
             </div>
-            <Separator />
-            <SearchBar />
-            <TabsContent value="inbox" className="m-0">
-              <ThreadList />
-            </TabsContent>
-            <TabsContent value="done" className="m-0">
-              <ThreadList />
-            </TabsContent>
-          </Tabs>
+          ) : (
+            <Tabs
+              defaultValue="inbox"
+              value={done ? "done" : "inbox"}
+              onValueChange={(tab) => {
+                if (tab === "done") {
+                  setDone(true);
+                } else {
+                  setDone(false);
+                }
+              }}
+            >
+              <div className="flex items-center px-4 py-2">
+                <h1 className="text-xl font-bold">Inbox</h1>
+                <TabsList className="ml-auto">
+                  <TabsTrigger
+                    value="inbox"
+                    className="text-zinc-600 dark:text-zinc-200"
+                  >
+                    Inbox
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="done"
+                    className="text-zinc-600 dark:text-zinc-200"
+                  >
+                    Done
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <Separator />
+              <SearchBar />
+              <TabsContent value="inbox" className="m-0">
+                <ThreadList />
+              </TabsContent>
+              <TabsContent value="done" className="m-0">
+                <ThreadList />
+              </TabsContent>
+            </Tabs>
+          )}
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={defaultLayout[2]} minSize={30}>

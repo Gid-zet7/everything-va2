@@ -23,6 +23,8 @@ model User {
     role Role @default(user)
 
     accounts Account[]
+    emailCategories EmailCategory[]
+    emailRules EmailRule[]
 
     chatbotInteraction ChatbotInteraction?
 }
@@ -139,16 +141,140 @@ model Email {
     omitted              String[]
 
     emailLabel EmailLabel @default(inbox)
+    
+    // Organization relationships
+    categoryId String?
+    category   EmailCategory? @relation(fields: [categoryId], references: [id])
+    classification EmailClassification?
+    
+    // Status tracking
+    status EmailStatus @default(unread)
+    priority EmailPriority @default(medium)
+    
+    // User-defined labels
+    customLabels String[] @default([])
+    
+    // User notes
+    notes String?
 
     @@index([threadId])
     @@index([emailLabel])
     @@index([sentAt])
+    @@index([categoryId])
+    @@index([status])
+    @@index([priority])
 }
 
 enum EmailLabel {
     inbox
     sent
     draft
+}
+
+// New enums for email organization
+enum EmailCategoryType {
+    actionRequired
+    waitingOn
+    reference
+    somedayLater
+    clients
+    projects
+    finance
+    meetings
+    personal
+    spam
+}
+
+enum EmailPriority {
+    low
+    medium
+    high
+    urgent
+}
+
+enum EmailStatus {
+    unread
+    read
+    archived
+    flagged
+    snoozed
+}
+
+// New models for email organization
+model EmailCategory {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    color       String?  // Hex color for UI
+    icon        String?  // Icon name for UI
+    userId      String
+    user        User     @relation(fields: [userId], references: [id])
+    emails      Email[]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([userId, name])
+    @@index([userId])
+}
+
+model EmailClassification {
+    id           String   @id @default(cuid())
+    emailId      String   @unique
+    email        Email    @relation(fields: [emailId], references: [id])
+    
+    // AI classification results
+    category     EmailCategoryType
+    priority     EmailPriority
+    confidence   Float    // 0.0 to 1.0 confidence score
+    
+    // Extracted entities
+    entities     Json?    // Named entities (people, companies, dates, etc.)
+    sentiment    String?  // positive, negative, neutral
+    keywords     String[]
+    
+    // Action items
+    hasActionItems    Boolean @default(false)
+    actionItems       Json?   // Array of action items
+    dueDate          DateTime?
+    requiresResponse Boolean  @default(false)
+    
+    // Meeting detection
+    isMeeting        Boolean @default(false)
+    meetingDate      DateTime?
+    meetingDuration  Int?    // in minutes
+    
+    // Client/Project detection
+    clientName       String?
+    projectName      String?
+    
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+
+    @@index([priority])
+    @@index([confidence])
+}
+
+model EmailRule {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    userId      String
+    user        User     @relation(fields: [userId], references: [id])
+    
+    // Rule conditions
+    conditions  Json     // Array of conditions (from, to, subject, body, etc.)
+    
+    // Rule actions
+    actions     Json     // Array of actions (categorize, label, priority, etc.)
+    
+    isActive    Boolean  @default(true)
+    priority    Int      @default(0) // Higher number = higher priority
+    
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([userId])
+    @@index([isActive])
 }
 
 model EmailAddress {

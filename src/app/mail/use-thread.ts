@@ -1,8 +1,6 @@
-import { atom, useAtom } from "jotai"
-
-
-const configAtom = atom<string | null>(null)
+import { useAtom } from "jotai";
+import { threadIdAtom } from "@/lib/atoms";
 
 export function useThread() {
-  return useAtom(configAtom)
+  return useAtom(threadIdAtom);
 }
