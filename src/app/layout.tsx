@@ -6,7 +6,7 @@ import { type Metadata } from "next";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "Normal Human",
+  title: "EverythingVA",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
