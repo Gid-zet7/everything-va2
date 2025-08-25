@@ -1,4 +1,4 @@
-# NormalHuman - AI-Powered Email Client
+# EverythingVA - AI-Powered Email Client
 
 A modern, full-stack AI-powered email client built with Next.js 14, featuring advanced email management, AI assistance, and subscription-based premium features.
 
@@ -80,7 +80,7 @@ A modern, full-stack AI-powered email client built with Next.js 14, featuring ad
 
    ```env
    # Database
-   DATABASE_URL="postgresql://username:password@localhost:5432/normalhuman"
+   DATABASE_URL="postgresql://username:password@localhost:5432/EverythingVA"
 
    # Authentication (Kinde)
    KINDE_CLIENT_ID="your_kinde_client_id"
@@ -167,7 +167,7 @@ npm start
 ## 📁 Project Structure
 
 ```
-normalhuman/
+EverythingVA/
 ├── src/
 │   ├── app/                 # Next.js App Router pages
 │   ├── components/          # Reusable UI components
