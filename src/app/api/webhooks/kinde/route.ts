@@ -28,8 +28,14 @@ interface KindeWebhookEvent {
 
 export async function POST(req: Request) {
   try {
+    console.log("🔔 Kinde webhook received at:", new Date().toISOString());
+
     // Get the token from the request
     const token = await req.text();
+    console.log(
+      "📝 Token received (first 50 chars):",
+      token.substring(0, 50) + "...",
+    );
 
     // Decode the token
     const decoded = jwt.decode(token, { complete: true });
@@ -48,28 +54,33 @@ export async function POST(req: Request) {
     console.log("Webhook event received:", event.type);
 
     // Handle various events
-    switch (event?.type) {
-      case "user.updated":
-        // handle user updated event
-        // e.g update database with event.data
-        console.log("User updated event:", event.data);
-        await handleUserEvent(event.data, "update");
-        break;
-      case "user.created":
-        // handle user created event
-        // e.g add user to database with event.data
-        console.log("User created event:", event.data);
-        await handleUserEvent(event.data, "create");
-        break;
-      case "user.deleted":
-        // handle user deleted event
-        console.log("User deleted event:", event.data);
-        await handleUserEvent(event.data, "delete");
-        break;
-      default:
-        // other events that we don't handle
-        console.log("Unhandled event type:", event?.type);
-        break;
+    try {
+      switch (event?.type) {
+        case "user.updated":
+          // handle user updated event
+          // e.g update database with event.data
+          console.log("User updated event:", event.data);
+          await handleUserEvent(event.data, "update");
+          break;
+        case "user.created":
+          // handle user created event
+          // e.g add user to database with event.data
+          console.log("User created event:", event.data);
+          await handleUserEvent(event.data, "create");
+          break;
+        case "user.deleted":
+          // handle user deleted event
+          console.log("User deleted event:", event.data);
+          await handleUserEvent(event.data, "delete");
+          break;
+        default:
+          // other events that we don't handle
+          console.log("Unhandled event type:", event?.type);
+          break;
+      }
+    } catch (error) {
+      console.error("Error handling webhook event:", error);
+      // Don't throw the error to prevent webhook failure
     }
   } catch (err) {
     if (err instanceof Error) {
@@ -111,9 +122,9 @@ async function handleUserEvent(
       case "create":
       case "update":
         await db.user.upsert({
-          where: { id },
+          where: { emailAddress },
           update: {
-            emailAddress,
+            id,
             firstName,
             lastName,
             imageUrl,
@@ -129,10 +140,15 @@ async function handleUserEvent(
         console.log(`User ${action}d in database:`, id);
         break;
       case "delete":
-        await db.user.delete({
+        // Use deleteMany to handle cases where user might not exist
+        const deleteResult = await db.user.deleteMany({
           where: { id },
         });
-        console.log("User deleted from database:", id);
+        if (deleteResult.count > 0) {
+          console.log("User deleted from database:", id);
+        } else {
+          console.log("User not found in database for deletion:", id);
+        }
         break;
     }
   } catch (error) {

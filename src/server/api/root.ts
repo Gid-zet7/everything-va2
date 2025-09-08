@@ -2,6 +2,7 @@ import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { mailRouter } from "./routers/mail";
 import { searchRouter } from "./routers/search";
 import { webhooksRouter } from "./routers/webhooks";
+import { calendarRouter } from "./routers/calendar";
 
 /**
  * This is the primary router for your server.
@@ -11,7 +12,8 @@ import { webhooksRouter } from "./routers/webhooks";
 export const appRouter = createTRPCRouter({
   mail: mailRouter,
   search: searchRouter,
-  webhooks: webhooksRouter
+  webhooks: webhooksRouter,
+  calendar: calendarRouter,
 });
 
 // export type definition of API

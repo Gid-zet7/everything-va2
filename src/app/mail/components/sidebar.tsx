@@ -14,6 +14,7 @@ import {
   Trash2,
   Users2,
   FolderOpen,
+  Calendar,
 } from "lucide-react";
 
 import { useLocalStorage } from "usehooks-ts";
@@ -77,6 +78,13 @@ const SideBar = ({ isCollapsed }: Props) => {
             label: "",
             icon: FolderOpen,
             variant: tab === "organizer" ? "default" : "ghost",
+          },
+          {
+            title: "Calendar",
+            label: "",
+            icon: Calendar,
+            variant: tab === "calendar" ? "default" : "ghost",
+            href: "/calendar",
           },
         ]}
       />

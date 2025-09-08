@@ -39,10 +39,13 @@ export function ThreadList() {
 
   return (
     <div className="max-h-[calc(100vh-120px)] max-w-full overflow-y-scroll">
-      <div className="flex flex-col gap-2 p-4 pt-0" ref={parent}>
+      <div
+        className="flex flex-col gap-1 p-2 pt-0 sm:gap-2 sm:p-4"
+        ref={parent}
+      >
         {Object.entries(groupedThreads ?? {}).map(([date, threads]) => (
           <React.Fragment key={date}>
-            <div className="mt-4 text-xs font-medium text-muted-foreground first:mt-0">
+            <div className="mt-3 px-1 text-xs font-medium text-muted-foreground first:mt-0 sm:mt-4">
               {format(new Date(date), "MMMM d, yyyy")}
             </div>
             {threads.map((item) => (
@@ -50,7 +53,7 @@ export function ThreadList() {
                 id={`thread-${item.id}`}
                 key={item.id}
                 className={cn(
-                  "relative flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all",
+                  "relative flex flex-col items-start gap-1 rounded-lg border p-2 text-left text-xs transition-all sm:gap-2 sm:p-3 sm:text-sm",
                   visualMode &&
                     selectedThreadIds.includes(item.id) &&
                     "bg-blue-200 dark:bg-blue-900",

@@ -7,14 +7,17 @@ import type {
 import { db } from "@/server/db";
 import axios from "axios";
 import { syncEmailsToDatabase } from "./sync-to-db";
+import { getValidToken } from "./token-refresh";
 
 const API_BASE_URL = "https://api.aurinko.io/v1";
 
 class Account {
   private token: string;
+  private accountId: string;
 
-  constructor(token: string) {
+  constructor(token: string, accountId?: string) {
     this.token = token;
+    this.accountId = accountId || "";
   }
 
   private async startSync(daysWithin: number): Promise<SyncResponse> {
@@ -60,42 +63,91 @@ class Account {
       },
     });
     if (!account) throw new Error("Invalid token");
-    if (!account.nextDeltaToken) throw new Error("No delta token");
-    let response = await this.getUpdatedEmails({
-      deltaToken: account.nextDeltaToken,
-    });
-    let allEmails: EmailMessage[] = response.records;
-    let storedDeltaToken = account.nextDeltaToken;
-    if (response.nextDeltaToken) {
-      storedDeltaToken = response.nextDeltaToken;
+
+    // Update accountId if not set
+    if (!this.accountId) {
+      this.accountId = account.id;
     }
-    while (response.nextPageToken) {
-      response = await this.getUpdatedEmails({
-        pageToken: response.nextPageToken,
+
+    // If no delta token exists, perform initial sync
+    if (!account.nextDeltaToken) {
+      console.log("No delta token found, performing initial sync");
+      const initialSyncResult = await this.performInitialSync();
+      if (!initialSyncResult) {
+        throw new Error("Failed to perform initial sync");
+      }
+      
+      // Sync the emails to database
+      try {
+        await syncEmailsToDatabase(initialSyncResult.emails, account.id);
+      } catch (error) {
+        console.log("Error syncing emails to database:", error);
+      }
+      
+      // Update the account with the delta token from initial sync
+      await db.account.update({
+        where: {
+          id: account.id,
+        },
+        data: {
+          nextDeltaToken: initialSyncResult.deltaToken,
+        },
       });
-      allEmails = allEmails.concat(response.records);
+      
+      return;
+    }
+
+    try {
+      let response = await this.getUpdatedEmails({
+        deltaToken: account.nextDeltaToken,
+      });
+      let allEmails: EmailMessage[] = response.records;
+      let storedDeltaToken = account.nextDeltaToken;
       if (response.nextDeltaToken) {
         storedDeltaToken = response.nextDeltaToken;
       }
-    }
+      while (response.nextPageToken) {
+        response = await this.getUpdatedEmails({
+          pageToken: response.nextPageToken,
+        });
+        allEmails = allEmails.concat(response.records);
+        if (response.nextDeltaToken) {
+          storedDeltaToken = response.nextDeltaToken;
+        }
+      }
 
-    if (!response) throw new Error("Failed to sync emails");
+      if (!response) throw new Error("Failed to sync emails");
 
-    try {
-      await syncEmailsToDatabase(allEmails, account.id);
+      try {
+        await syncEmailsToDatabase(allEmails, account.id);
+      } catch (error) {
+        console.log("error", error);
+      }
+
+      // console.log('syncEmails', response)
+      await db.account.update({
+        where: {
+          id: account.id,
+        },
+        data: {
+          nextDeltaToken: storedDeltaToken,
+        },
+      });
     } catch (error) {
-      console.log("error", error);
+      if (error instanceof Error && error.message === "TOKEN_EXPIRED") {
+        // Mark account as needing re-authentication
+        await db.account.update({
+          where: {
+            id: account.id,
+          },
+          data: {
+            token: "", // Clear the expired token
+          },
+        });
+        throw new Error("TOKEN_EXPIRED");
+      }
+      throw error;
     }
-
-    // console.log('syncEmails', response)
-    await db.account.update({
-      where: {
-        id: account.id,
-      },
-      data: {
-        nextDeltaToken: storedDeltaToken,
-      },
-    });
   }
 
   async getUpdatedEmails({
@@ -113,14 +165,33 @@ class Account {
     if (pageToken) {
       params.pageToken = pageToken;
     }
-    const response = await axios.get<SyncUpdatedResponse>(
-      `${API_BASE_URL}/email/sync/updated`,
-      {
-        params,
-        headers: { Authorization: `Bearer ${this.token}` },
-      },
-    );
-    return response.data;
+
+    try {
+      // Try to get a valid token if we have an accountId
+      let tokenToUse = this.token;
+      if (this.accountId) {
+        const validToken = await getValidToken(this.accountId);
+        if (validToken) {
+          tokenToUse = validToken;
+          this.token = validToken; // Update the instance token
+        }
+      }
+
+      const response = await axios.get<SyncUpdatedResponse>(
+        `${API_BASE_URL}/email/sync/updated`,
+        {
+          params,
+          headers: { Authorization: `Bearer ${tokenToUse}` },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        // Token is expired or invalid
+        throw new Error("TOKEN_EXPIRED");
+      }
+      throw error;
+    }
   }
 
   async performInitialSync() {
@@ -192,6 +263,7 @@ class Account {
     cc,
     bcc,
     replyTo,
+    attachments,
   }: {
     from: EmailAddress;
     subject: string;
@@ -203,22 +275,40 @@ class Account {
     cc?: EmailAddress[];
     bcc?: EmailAddress[];
     replyTo?: EmailAddress;
+    attachments?: Array<{
+      id: string;
+      name: string;
+      size: number;
+      type: string;
+      content: string; // base64 encoded content
+    }>;
   }) {
     try {
+      const requestBody: any = {
+        from,
+        subject,
+        body,
+        inReplyTo,
+        references,
+        threadId,
+        to,
+        cc,
+        bcc,
+        replyTo: [replyTo],
+      };
+
+      // Add attachments if provided
+      if (attachments && attachments.length > 0) {
+        requestBody.attachments = attachments.map((attachment) => ({
+          name: attachment.name,
+          contentType: attachment.type,
+          content: attachment.content,
+        }));
+      }
+
       const response = await axios.post(
         `${API_BASE_URL}/email/messages`,
-        {
-          from,
-          subject,
-          body,
-          inReplyTo,
-          references,
-          threadId,
-          to,
-          cc,
-          bcc,
-          replyTo: [replyTo],
-        },
+        requestBody,
         {
           params: {
             returnIds: true,

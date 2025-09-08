@@ -23,16 +23,19 @@ export default function MailPageClient({
 }: MailPageClientProps) {
   return (
     <Kbar>
-      <div className="absolute bottom-4 left-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Guest User</span>
-            <LogoutLink className="text-sm">Logout </LogoutLink>
+      {/* Responsive bottom controls */}
+      <div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-auto">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/80 p-2 shadow-lg backdrop-blur-sm md:flex-nowrap md:justify-start">
+          <div className="flex items-center gap-2 text-xs md:text-sm">
+            <span className="hidden sm:inline">Guest User</span>
+            <LogoutLink className="text-xs md:text-sm">Logout</LogoutLink>
           </div>
-          <ModeToggle />
-          <ComposeButton />
-          <AuthoriseButton />
-          {process.env.NODE_ENV === "development" && <WebhookDebugger />}
+          <div className="flex items-center gap-1 md:gap-2">
+            <ModeToggle />
+            <ComposeButton />
+            <AuthoriseButton />
+            {process.env.NODE_ENV === "development" && <WebhookDebugger />}
+          </div>
         </div>
       </div>
 

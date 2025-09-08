@@ -29,7 +29,7 @@ export const getAurinkoAuthorizationUrl = async (
     where: { userId },
   });
 
-  if (user.role === "user") {
+  if (dbUser.role === "user") {
     if (isSubscribed) {
       if (accounts >= PRO_ACCOUNTS_PER_USER) {
         throw new Error(
@@ -45,15 +45,17 @@ export const getAurinkoAuthorizationUrl = async (
     }
   }
 
+  // Build URL manually to avoid double encoding issues
+  const scopes = "Mail.Read Mail.ReadWrite";
+  const baseUrl = "https://api.aurinko.io/v1/auth/authorize";
   const params = new URLSearchParams({
     clientId: process.env.AURINKO_CLIENT_ID as string,
     serviceType,
-    scopes: "Mail.Read Mail.ReadWrite Mail.Send Mail.Drafts Mail.All",
     responseType: "code",
     returnUrl: `${process.env.NEXT_PUBLIC_URL}/api/aurinko/callback`,
   });
 
-  return `https://api.aurinko.io/v1/auth/authorize?${params.toString()}`;
+  return `${baseUrl}?${params.toString()}&scopes=${encodeURIComponent(scopes)}`;
 };
 
 export const getAurinkoToken = async (code: string) => {
@@ -72,6 +74,8 @@ export const getAurinkoToken = async (code: string) => {
     return response.data as {
       accountId: number;
       accessToken: string;
+      refreshToken?: string;
+      expiresIn?: number;
       userId: string;
       userSession: string;
     };

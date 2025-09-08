@@ -208,33 +208,38 @@ export function ThreadDisplay() {
         <>
           {thread ? (
             <div className="flex flex-1 flex-col overflow-scroll">
-              <div className="flex items-start p-4">
-                <div className="flex items-start gap-4 text-sm">
-                  <Avatar>
+              <div className="flex items-start p-3 sm:p-4">
+                <div className="flex items-start gap-2 text-sm sm:gap-4">
+                  <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                     <AvatarImage alt={"lol"} />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-xs sm:text-sm">
                       {thread?.emails[0]?.from?.name
                         ?.split(" ")
                         .map((chunk) => chunk[0])
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="grid gap-1">
-                    <div className="font-semibold">
+                  <div className="grid min-w-0 flex-1 gap-1">
+                    <div className="truncate text-sm font-semibold sm:text-base">
                       {thread.emails[0]?.from?.name}
                     </div>
-                    <div className="line-clamp-1 text-xs">
+                    <div className="line-clamp-1 text-xs sm:text-sm">
                       {thread.emails[0]?.subject}
                     </div>
-                    <div className="line-clamp-1 text-xs">
+                    <div className="line-clamp-1 hidden text-xs sm:block">
                       <span className="font-medium">Reply-To:</span>{" "}
                       {thread.emails[0]?.from?.address}
                     </div>
                   </div>
                 </div>
                 {thread.emails[0]?.sentAt && (
-                  <div className="ml-auto text-xs text-muted-foreground">
-                    {format(new Date(thread.emails[0].sentAt), "PPpp")}
+                  <div className="ml-2 flex-shrink-0 text-xs text-muted-foreground">
+                    <span className="hidden sm:inline">
+                      {format(new Date(thread.emails[0].sentAt), "PPpp")}
+                    </span>
+                    <span className="sm:hidden">
+                      {format(new Date(thread.emails[0].sentAt), "MMM d")}
+                    </span>
                   </div>
                 )}
               </div>

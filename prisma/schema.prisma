@@ -70,6 +70,8 @@ model Account {
     binaryIndex Json?
 
     token        String @unique
+    refreshToken String? // Add refresh token field
+    tokenExpiresAt DateTime? // Add token expiration field
     provider     String
     emailAddress String
     name         String
@@ -79,6 +81,7 @@ model Account {
     user           User           @relation(fields: [userId], references: [id])
     threads        Thread[]
     emailAddresses EmailAddress[]
+    calendars      Calendar[]
 }
 
 //     // "dev": "next dev --turbo | egrep -v '^\\s?(GET|POST|OPTIONS)'",
@@ -320,4 +323,82 @@ enum MeetingMessageMethod {
     cancel
     counter
     other
+}
+
+// Calendar models
+model Calendar {
+    id          String   @id @default(cuid())
+    accountId   String
+    account     Account  @relation(fields: [accountId], references: [id])
+    
+    // Calendar details
+    name        String
+    description String?
+    color       String?  // Hex color code
+    isPrimary   Boolean  @default(false)
+    isReadOnly  Boolean  @default(false)
+    
+    // Aurinko calendar ID
+    aurinkoCalendarId String? @unique
+    
+    // Sync settings
+    lastSyncAt  DateTime?
+    syncEnabled Boolean  @default(true)
+    
+    events      CalendarEvent[]
+    
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([accountId])
+    @@index([isPrimary])
+}
+
+model CalendarEvent {
+    id          String   @id @default(cuid())
+    calendarId  String
+    calendar    Calendar @relation(fields: [calendarId], references: [id])
+    
+    // Event details
+    title       String
+    description String?
+    location    String?
+    
+    // Time details
+    startTime   DateTime
+    endTime     DateTime
+    isAllDay    Boolean  @default(false)
+    
+    // Recurrence
+    recurrence  Json?    // Recurrence pattern (RRULE format)
+    
+    // Attendees
+    attendees   Json?    // Array of attendee objects
+    
+    // Status
+    status      CalendarEventStatus @default(confirmed)
+    
+    // Aurinko event ID
+    aurinkoEventId String? @unique
+    
+    // Meeting link (for online meetings)
+    meetingUrl  String?
+    
+    // Reminders
+    reminders   Json?    // Array of reminder objects
+    
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@index([calendarId])
+    @@index([startTime])
+    @@index([endTime])
+    @@index([status])
+}
+
+enum CalendarEventStatus {
+    confirmed
+    tentative
+    cancelled
+    needsAction
 }

@@ -8,25 +8,41 @@ import type { Prisma } from "@prisma/client";
 import { emailAddressSchema } from "@/lib/types";
 import { FREE_CREDITS_PER_DAY } from "@/app/constants";
 import { EmailOrganizer } from "@/lib/email-organizer";
+import { checkAccountAuthStatus } from "@/lib/account-utils";
 
 export const authoriseAccountAccess = async (
   accountId: string,
   userId: string,
 ) => {
-  const account = await db.account.findFirst({
-    where: {
-      id: accountId,
-      userId: userId,
-    },
-    select: {
-      id: true,
-      emailAddress: true,
-      name: true,
-      token: true,
-    },
-  });
-  if (!account) throw new Error("Invalid token");
-  return account;
+  try {
+    const account = await db.account.findFirst({
+      where: {
+        id: accountId,
+        userId: userId,
+      },
+      select: {
+        id: true,
+        emailAddress: true,
+        name: true,
+        token: true,
+      },
+    });
+    if (!account) {
+      console.log(
+        `No account found for accountId: ${accountId}, userId: ${userId}`,
+      );
+      throw new Error(
+        "Account not found. Please connect your email account first.",
+      );
+    }
+    return account;
+  } catch (error) {
+    console.error("Error in authoriseAccountAccess:", error);
+    if (error instanceof Error) {
+      throw new Error(error.message);
+    }
+    throw new Error("Failed to access account");
+  }
 };
 
 const inboxFilter = (accountId: string): Prisma.ThreadWhereInput => ({
@@ -46,19 +62,25 @@ const draftFilter = (accountId: string): Prisma.ThreadWhereInput => ({
 
 export const mailRouter = createTRPCRouter({
   getAccounts: protectedProcedure.query(async ({ ctx }) => {
-    console.log("getAccounts called with userId:", ctx.auth.id);
-    const accounts = await ctx.db.account.findMany({
-      where: {
-        userId: ctx.auth.id,
-      },
-      select: {
-        id: true,
-        emailAddress: true,
-        name: true,
-      },
-    });
-    console.log("getAccounts result:", accounts);
-    return accounts;
+    try {
+      console.log("getAccounts called with userId:", ctx.auth.id);
+      const accounts = await ctx.db.account.findMany({
+        where: {
+          userId: ctx.auth.id,
+        },
+        select: {
+          id: true,
+          emailAddress: true,
+          name: true,
+        },
+      });
+      console.log("getAccounts result:", accounts);
+      return accounts;
+    } catch (error) {
+      console.error("Error in getAccounts:", error);
+      // Return empty array if there's a database error
+      return [];
+    }
   }),
   getNumThreads: protectedProcedure
     .input(
@@ -254,8 +276,27 @@ export const mailRouter = createTRPCRouter({
         ctx.auth.id,
       );
       if (!account) throw new Error("Invalid token");
-      const acc = new Account(account.token);
-      acc.syncEmails();
+
+      try {
+        const acc = new Account(account.token, input.accountId);
+        await acc.syncEmails();
+        return { success: true };
+      } catch (error) {
+        if (error instanceof Error && error.message === "TOKEN_EXPIRED") {
+          throw new Error("TOKEN_EXPIRED");
+        }
+        console.error("Sync emails error:", error);
+        throw new Error("Failed to sync emails");
+      }
+    }),
+  checkAccountAuth: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      return await checkAccountAuthStatus(input.accountId);
     }),
   setUndone: protectedProcedure
     .input(
@@ -360,6 +401,17 @@ export const mailRouter = createTRPCRouter({
         replyTo: emailAddressSchema,
         inReplyTo: z.string().optional(),
         threadId: z.string().optional(),
+        attachments: z
+          .array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              size: z.number(),
+              type: z.string(),
+              content: z.string(), // base64 encoded content
+            }),
+          )
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -376,6 +428,7 @@ export const mailRouter = createTRPCRouter({
         replyTo: input.replyTo,
         from: input.from,
         inReplyTo: input.inReplyTo,
+        attachments: input.attachments,
       });
     }),
   getEmailSuggestions: protectedProcedure

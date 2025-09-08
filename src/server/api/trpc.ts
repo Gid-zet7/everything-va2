@@ -29,6 +29,37 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
   try {
     const user = await getKindeUserForAPI();
     // console.log("tRPC context user:", user);
+
+    // If user exists, ensure they're in our database
+    if (user?.id && user?.email) {
+      try {
+        await db.user.upsert({
+          where: { emailAddress: user.email },
+          update: {
+            id: user.id,
+            firstName:
+              (user as any).given_name || (user as any).first_name || "",
+            lastName:
+              (user as any).family_name || (user as any).last_name || "",
+            imageUrl: user.picture || "",
+          },
+          create: {
+            id: user.id,
+            emailAddress: user.email,
+            firstName:
+              (user as any).given_name || (user as any).first_name || "",
+            lastName:
+              (user as any).family_name || (user as any).last_name || "",
+            imageUrl: user.picture || "",
+          },
+        });
+        console.log(`User ${user.id} ensured in database`);
+      } catch (dbError) {
+        console.error("Error ensuring user in database:", dbError);
+        // Don't fail the request if database operation fails
+      }
+    }
+
     return {
       auth: user,
       db,

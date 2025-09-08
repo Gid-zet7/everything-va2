@@ -30,18 +30,27 @@ export const GET = async (req: NextRequest) => {
         { status: 400 },
       );
     const accountDetails = await getAccountDetails(token.accessToken);
+
+    // Calculate token expiration time
+    const expiresIn = token.expiresIn || 3600; // Default to 1 hour
+    const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+
     await db.account.upsert({
       where: { id: token.accountId.toString() },
       create: {
         id: token.accountId.toString(),
         userId,
         token: token.accessToken,
+        refreshToken: token.refreshToken || null,
+        tokenExpiresAt,
         provider: "Aurinko",
         emailAddress: accountDetails.email,
         name: accountDetails.name,
       },
       update: {
         token: token.accessToken,
+        refreshToken: token.refreshToken || undefined,
+        tokenExpiresAt,
       },
     });
     waitUntil(
