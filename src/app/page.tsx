@@ -9,11 +9,11 @@ import {
   LoginLink,
 } from "@kinde-oss/kinde-auth-nextjs/components";
 import Image from "next/image";
-import RippleGrid from "@/components/hero-background";
+import DotGrid from "@/components/dot-grid";
 import CardSwap, { Card } from "@/components/card-swap";
 import SpotlightCard from "@/components/spotlight-card";
 import PillNav from "@/components/pill-nav";
-import logo from "../../public/logo.png";
+const logo = "/logo.png";
 import MagicBento from "@/components/magic-bento";
 import StarBorder from "@/components/star-border";
 
@@ -23,6 +23,8 @@ import {
   SiNextdotjs,
   SiTypescript,
   SiTailwindcss,
+  SiGmail,
+  SiGooglecalendar,
 } from "react-icons/si";
 
 const techLogos = [
@@ -70,7 +72,7 @@ const LandingPage = async () => {
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <PillNav
-        logo={logo.src}
+        logo={logo}
         logoAlt="EverythingVA Logo"
         items={[
           { label: "Home", href: "/" },
@@ -87,77 +89,74 @@ const LandingPage = async () => {
         pillTextColor="hsl(var(--foreground))"
       />
 
-      {/* Hero Section with RippleGrid */}
+      {/* Hero Section with DotGrid */}
       <div className="relative h-screen overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="bg-grid-foreground absolute inset-0 overflow-hidden bg-[size:50px_50px]" />
-        <RippleGrid
-          enableRainbow={false}
-          gridColor="hsl(var(--muted-foreground))"
-          rippleIntensity={0.05}
-          gridSize={10}
-          gridThickness={15}
-          fadeDistance={100}
-          glowIntensity={0.1}
-          mouseInteraction={true}
-          mouseInteractionRadius={1.2}
-          opacity={0.3}
-        >
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="relative z-10 max-w-4xl px-4">
-              <div className="mb-8 inline-flex items-center rounded-full border border-border/50 bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-lg backdrop-blur-sm">
-                <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-green-500" />
-                <span className="mr-1">✨</span>
-                AI-Powered Email Management
-              </div>
+        <div className="absolute inset-0">
+          <DotGrid className="h-full w-full" baseColor="#6b7280" activeColor="#3b82f6" gap={18} dotSize={2} />
+        </div>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-10 top-24 text-red-500/70 [animation:floatY_8s_ease-in-out_infinite]">
+            <SiGmail className="h-8 w-8 md:h-12 md:w-12" />
+          </div>
+          <div className="absolute right-12 bottom-28 text-blue-500/70 [animation:floatY_10s_ease-in-out_infinite] [animation-delay:2s]">
+            <SiGooglecalendar className="h-8 w-8 md:h-12 md:w-12" />
+          </div>
+        </div>
+        <div className="relative z-10 flex h-full flex-col items-center justify-center text-center">
+          <div className="max-w-4xl px-4">
+            <div className="mb-8 inline-flex items-center rounded-full border border-border/50 bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-lg backdrop-blur-sm">
+              <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-green-500" />
+              <span className="mr-1">✨</span>
+              AI-Powered Email Management
+            </div>
 
-              <h1 className="mb-6 bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-6xl font-bold text-transparent md:text-7xl lg:text-8xl">
-                The minimalistic, <br />
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  AI-powered
-                </span>{" "}
-                email client.
-              </h1>
+            <h1 className="mb-6 bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-4xl font-bold text-transparent md:text-5xl lg:text-6xl">
+              The minimalistic, <br />
+              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                AI-powered
+              </span>{" "}
+              email client.
+            </h1>
 
-              <p className="mb-8 max-w-2xl text-center text-xl text-muted-foreground">
-                EverythingVA is a minimalistic, AI-powered email client that
-                empowers you to manage your email with ease.
-              </p>
+            <p className="mb-8 max-w-2xl text-center text-xl text-muted-foreground">
+              EverythingVA is a minimalistic, AI-powered email client that
+              empowers you to manage your email with ease.
+            </p>
 
-              <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
+            <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
+              <Button
+                size="lg"
+                className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              >
+                <span className="relative z-10">Get Started</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              </Button>
+
+              <Link href="https://start-saas.com?utm=normalhuman">
                 <Button
+                  variant="outline"
                   size="lg"
-                  className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                  className="group rounded-xl border-2 border-border bg-background/50 px-8 py-4 text-lg font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:border-primary hover:bg-background"
                 >
-                  <span className="relative z-10">Get Started</span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                </Button>
-
-                <Link href="https://start-saas.com?utm=normalhuman">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="group rounded-xl border-2 border-border bg-background/50 px-8 py-4 text-lg font-semibold backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:border-primary hover:bg-background"
+                  <span className="mr-2">Learn More</span>
+                  <svg
+                    className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <span className="mr-2">Learn More</span>
-                    <svg
-                      className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                      />
-                    </svg>
-                  </Button>
-                </Link>
-              </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    />
+                  </svg>
+                </Button>
+              </Link>
             </div>
           </div>
-        </RippleGrid>
+        </div>
       </div>
 
       {/* Technology Partners Section */}
@@ -200,7 +199,7 @@ const LandingPage = async () => {
           {/* Feature Cards with SpotlightCard */}
           <div className="mb-20 grid grid-cols-1 gap-8 md:grid-cols-3">
             <SpotlightCard
-              className="group rounded-2xl border border-border/50 bg-card p-8 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              className="group transition-all duration-300 hover:scale-105"
               spotlightColor="rgba(59, 130, 246, 0.1)"
             >
               <div className="text-center">
@@ -230,7 +229,7 @@ const LandingPage = async () => {
             </SpotlightCard>
 
             <SpotlightCard
-              className="group rounded-2xl border border-border/50 bg-card p-8 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              className="group transition-all duration-300 hover:scale-105"
               spotlightColor="rgba(34, 197, 94, 0.1)"
             >
               <div className="text-center">
@@ -260,7 +259,7 @@ const LandingPage = async () => {
             </SpotlightCard>
 
             <SpotlightCard
-              className="group rounded-2xl border border-border/50 bg-card p-8 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              className="group transition-all duration-300 hover:scale-105"
               spotlightColor="rgba(245, 158, 11, 0.1)"
             >
               <div className="text-center">
