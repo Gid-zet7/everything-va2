@@ -1,6 +1,7 @@
 "use client";
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { gsap } from "gsap";
+import Image from "next/image";
 
 export interface BentoCardProps {
   color?: string;
@@ -377,7 +378,7 @@ const ParticleCard: React.FC<{
 };
 
 const GlobalSpotlight: React.FC<{
-  gridRef: React.RefObject<HTMLDivElement | null>;
+  gridRef: React.RefObject<HTMLDivElement>;
   disableAnimations?: boolean;
   enabled?: boolean;
   spotlightRadius?: number;
@@ -529,10 +530,10 @@ const GlobalSpotlight: React.FC<{
 
 const BentoCardGrid: React.FC<{
   children: React.ReactNode;
-  gridRef?: React.RefObject<HTMLDivElement | null>;
+  gridRef?: React.RefObject<HTMLDivElement>;
 }> = ({ children, gridRef }) => (
   <div
-    className="bento-section relative grid max-w-[54rem] select-none gap-2 p-3"
+    className="bento-section relative grid max-w-[70rem] select-none gap-4 p-6"
     style={{ fontSize: "clamp(1rem, 0.9rem + 0.5vw, 1.5rem)" }}
     ref={gridRef}
   >
@@ -593,9 +594,9 @@ const MagicBento: React.FC<BentoProps> = ({
           
           .card-responsive {
             grid-template-columns: 1fr;
-            width: 90%;
+            width: 95%;
             margin: 0 auto;
-            padding: 0.5rem;
+            padding: 1rem;
           }
           
           @media (min-width: 600px) {
@@ -689,14 +690,14 @@ const MagicBento: React.FC<BentoProps> = ({
           @media (max-width: 599px) {
             .card-responsive {
               grid-template-columns: 1fr;
-              width: 90%;
+              width: 95%;
               margin: 0 auto;
-              padding: 0.5rem;
+              padding: 1rem;
             }
             
             .card-responsive .card {
               width: 100%;
-              min-height: 180px;
+              min-height: 250px;
             }
           }
         `}
@@ -713,9 +714,9 @@ const MagicBento: React.FC<BentoProps> = ({
       )}
 
       <BentoCardGrid gridRef={gridRef}>
-        <div className="card-responsive grid gap-2">
+        <div className="card-responsive grid gap-4">
           {cardData.map((card, index) => {
-            const baseClassName = `card flex flex-col justify-between relative aspect-[4/3] min-h-[200px] w-full max-w-full p-5 rounded-[20px] border border-solid font-light overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] ${
+            const baseClassName = `card flex flex-col justify-between relative aspect-[4/3] min-h-[300px] w-full max-w-full p-8 rounded-[20px] border border-solid font-light overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] ${
               enableBorderGlow ? "card--border-glow" : ""
             }`;
 
@@ -743,19 +744,30 @@ const MagicBento: React.FC<BentoProps> = ({
                   enableMagnetism={enableMagnetism}
                 >
                   <div className="card__header relative flex justify-between gap-3 text-white">
-                    <span className="card__label text-base">{card.label}</span>
+                    <span className="card__label text-lg font-medium">{card.label}</span>
                   </div>
                   <div className="card__content relative flex flex-col text-white">
-                    <h3
+                    {index === 0 && (
+                      <div className="mb-3 w-64 h-64 flex justify-center items-center">
+                        <Image
+                          src="/AI-agent.png"
+                          alt="AI Agent"
+                          width={500}
+                          height={500}
+                          className="rounded-lg w-64 h-64"
+                        />
+                      </div>
+                    )}
+                    {/* <h3
                       className={`card__title m-0 mb-1 text-base font-normal ${textAutoHide ? "text-clamp-1" : ""}`}
                     >
                       {card.title}
-                    </h3>
-                    <p
+                    </h3> */}
+                    {/* <p
                       className={`card__description text-xs leading-5 opacity-90 ${textAutoHide ? "text-clamp-2" : ""}`}
                     >
                       {card.description}
-                    </p>
+                    </p> */}
                   </div>
                 </ParticleCard>
               );
@@ -877,9 +889,20 @@ const MagicBento: React.FC<BentoProps> = ({
                 }}
               >
                 <div className="card__header relative flex justify-between gap-3 text-white">
-                  <span className="card__label text-base">{card.label}</span>
+                  <span className="card__label text-lg font-medium">{card.label}</span>
                 </div>
                 <div className="card__content relative flex flex-col text-white">
+                  {index === 0 && (
+                    <div className="mb-3 flex justify-center">
+                      <Image
+                        src="/AI-agent.png"
+                        alt="AI Agent"
+                        width={60}
+                        height={60}
+                        className="rounded-lg"
+                      />
+                    </div>
+                  )}
                   <h3
                     className={`card__title m-0 mb-1 text-base font-normal ${textAutoHide ? "text-clamp-1" : ""}`}
                   >

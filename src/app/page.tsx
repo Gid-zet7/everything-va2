@@ -14,7 +14,7 @@ import CardSwap, { Card } from "@/components/card-swap";
 import SpotlightCard from "@/components/spotlight-card";
 import PillNav from "@/components/pill-nav";
 const logo = "/logo.png";
-import MagicBento from "@/components/magic-bento";
+import { BentoGridThirdDemo } from "@/components/bento";
 import StarBorder from "@/components/star-border";
 
 import LogoLoop from "@/components/logo-loop";
@@ -370,18 +370,7 @@ const LandingPage = async () => {
           </div>
 
           <div className="rounded-3xl border border-border/50 bg-card/50 p-8 backdrop-blur-sm transition-all duration-500 hover:scale-[1.02] hover:bg-card/70">
-            <MagicBento
-              textAutoHide={true}
-              enableStars={true}
-              enableSpotlight={true}
-              enableBorderGlow={true}
-              enableTilt={true}
-              enableMagnetism={true}
-              clickEffect={true}
-              spotlightRadius={300}
-              particleCount={12}
-              glowColor="59, 130, 246"
-            />
+            <BentoGridThirdDemo />
           </div>
         </div>
       </div>
