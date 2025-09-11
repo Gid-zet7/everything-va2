@@ -16,6 +16,8 @@ import PillNav from "@/components/pill-nav";
 const logo = "/logo.png";
 import { BentoGridThirdDemo } from "@/components/bento";
 import StarBorder from "@/components/star-border";
+import { WorldMapDemo } from "@/components/map";
+import Marquee from "@/components/marquee";
 
 import LogoLoop from "@/components/logo-loop";
 import {
@@ -291,16 +293,20 @@ const LandingPage = async () => {
 
           {/* Interactive Card Swap Section */}
           <div className="mb-20 text-center">
-            <h3 className="mb-12 text-3xl font-semibold text-foreground">
+            {/* <h3 className="mb-12 text-3xl font-semibold text-foreground">
+              See EverythingVA in action
+            </h3> */}
+            <div className="flex justify-center items-center">
+            <h3 className="mb-12 text-6xl font-semibold text-foreground">
               See EverythingVA in action
             </h3>
-            <div className="h-96 overflow-hidden rounded-2xl">
-              <CardSwap
-                cardDistance={60}
-                verticalDistance={70}
-                delay={5000}
-                pauseOnHover={false}
-              >
+              <div className="h-96 w-full max-w-4xl overflow-hidden rounded-2xl">
+                <CardSwap
+                  cardDistance={60}
+                  verticalDistance={70}
+                  delay={5000}
+                  pauseOnHover={false}
+                >
                 <Card className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:border-blue-800 dark:from-blue-950/50 dark:to-indigo-950/50">
                   <div className="p-8 text-center">
                     <h3 className="mb-4 text-2xl font-bold text-blue-900 dark:text-blue-100">
@@ -332,14 +338,15 @@ const LandingPage = async () => {
                     </p>
                   </div>
                 </Card>
-              </CardSwap>
+                </CardSwap>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Demo Section */}
-      <div id="demo" className="relative z-[10] bg-muted/30 py-24">
+      <div id="demo" className="relative z-[10] bg-muted/30 py-24 mt-40">
         <div className="mx-auto max-w-6xl px-4 text-center">
           <h2 className="mb-12 text-4xl font-bold text-foreground md:text-5xl">
             See EverythingVA in action
@@ -354,6 +361,21 @@ const LandingPage = async () => {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/20 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
           </div>
+        </div>
+      </div>
+
+      {/* Testimonials Marquee Section */}
+      <div className="relative z-[10] bg-background py-24">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold text-foreground md:text-5xl">
+              Loved by users worldwide
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              🌟 See what our community has to say about EverythingVA
+            </p>
+          </div>
+          <Marquee />
         </div>
       </div>
 
@@ -375,70 +397,39 @@ const LandingPage = async () => {
         </div>
       </div>
 
-      {/* CTA Section with StarBorder */}
-      <div className="relative z-[10] overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 py-24">
-        <div className="bg-grid-white/[0.1] dark:bg-grid-black/[0.1] absolute inset-0 overflow-hidden bg-[size:50px_50px]" />
-        <div className="relative mx-auto max-w-4xl px-4 text-center text-white">
-          <h2 className="mb-6 text-4xl font-bold md:text-5xl">
-            Ready to transform your email experience?
-          </h2>
-          <p className="mb-12 text-xl text-blue-100">
-            Join thousands of users who've already discovered the power of
-            EverythingVA
-          </p>
-
-          <div className="mb-12 flex flex-col items-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-            <StarBorder
-              as="button"
-              className="group rounded-xl bg-white px-8 py-4 font-semibold text-blue-600 transition-all duration-300 hover:scale-105 hover:bg-gray-100 hover:shadow-xl"
-              color="white"
-              speed="5s"
-            >
-              <span className="mr-2">Get Started Now</span>
-              <svg
-                className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-            </StarBorder>
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="rounded-xl border-2 border-white px-8 py-4 text-lg font-semibold text-white transition-all duration-300 hover:scale-105 hover:bg-white hover:text-blue-600"
-            >
-              <Link href="https://start-saas.com?utm=normalhuman">
-                Learn More
-              </Link>
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-center space-x-4">
-            <LoginLink>
-              <Button
-                variant="outline"
-                className="rounded-xl border-white bg-transparent text-white transition-all duration-300 hover:bg-white hover:text-blue-600"
-              >
-                Sign In
-              </Button>
-            </LoginLink>
-            <RegisterLink>
-              <Button className="rounded-xl bg-white text-blue-600 transition-all duration-300 hover:bg-gray-100">
-                Sign Up
-              </Button>
-            </RegisterLink>
-            <ModeToggle />
+      {/* Footer: World Map */}
+      <footer className="relative z-[10] overflow-hidden bg-background">
+        <div className="absolute inset-0 pointer-events-none" />
+        <div className="relative">
+          <WorldMapDemo />
+        </div>
+        <div className="relative -mt-24 pb-16">
+          <div className="mx-auto max-w-5xl px-4">
+            <div className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 p-6 md:p-8">
+              <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+                <div className="text-center md:text-left">
+                  <h3 className="text-2xl font-semibold text-foreground">Ready to transform your email experience?</h3>
+                  <p className="text-muted-foreground mt-1">Join thousands who already use EverythingVA.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <StarBorder
+                    as="button"
+                    className="group rounded-xl px-6 py-3 font-semibold text-magenta-600 transition-all duration-300 hover:scale-105"
+                    color="magenta"
+                    speed="5s"
+                  >
+                    Get Started
+                  </StarBorder>
+                  <ModeToggle />
+                  {/* <Button variant="outline" className="rounded-xl">
+                    <Link href="https://start-saas.com?utm=normalhuman">Learn More</Link>
+                  </Button> */}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };
