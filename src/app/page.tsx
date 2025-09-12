@@ -299,9 +299,15 @@ const LandingPage = async () => {
               See EverythingVA in action
             </h3> */}
             <div className="flex justify-center items-center">
-            <h3 className="mb-12 text-6xl font-semibold text-foreground">
-              See EverythingVA in action
-            </h3>
+              <div className="text-center">
+                <h3 className="mb-4 text-6xl font-bold text-foreground">
+                  Email Organizer
+                </h3>
+                <p className="text-muted-foreground text-xl">
+                  Automatically organize and categorize your emails
+                </p>
+              </div>
+              
               <div className="h-96 w-full max-w-4xl overflow-hidden rounded-2xl">
                 <CardSwap
                   cardDistance={60}
@@ -312,22 +318,41 @@ const LandingPage = async () => {
                 <Card className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:border-blue-800 dark:from-blue-950/50 dark:to-indigo-950/50">
                   <div className="p-8 text-center">
                     <h3 className="mb-4 text-2xl font-bold text-blue-900 dark:text-blue-100">
-                      Smart Inbox
+                      Overview
                     </h3>
                     <p className="text-blue-700 dark:text-blue-300">
-                      AI-powered email prioritization that learns from your
-                      behavior
+                      Overview of your inbox
                     </p>
+                    <div className="mb-4 flex w-full items-center justify-center">
+                    
+                      <Image
+                        src="/categories.svg"
+                        alt="Smart categories"
+                        width={600}
+                        height={300}
+                        className="h-72 w-auto"
+                      />
+                    </div>
+                    
                   </div>
                 </Card>
                 <Card className="rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 dark:border-green-800 dark:from-green-950/50 dark:to-emerald-950/50">
                   <div className="p-8 text-center">
                     <h3 className="mb-4 text-2xl font-bold text-green-900 dark:text-green-100">
-                      Lightning Fast
+                      Smart Categories
                     </h3>
                     <p className="text-green-700 dark:text-green-300">
-                      Built with Next.js 14 and optimized for speed
+                      Smart categories that work for you
                     </p>
+                    <div className="mb-4 flex w-full items-center justify-center">
+                      <Image
+                        src="/full-categories.svg"
+                        alt="Smart categories"
+                        width={600}
+                        height={300}
+                        className="h-72 w-auto"
+                      />
+                    </div>
                   </div>
                 </Card>
                 <Card className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50">
