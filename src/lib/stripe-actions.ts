@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/server/db";
 
 export async function createCheckoutSession() {
-  const { user } = await getKindeServerSession();
+  const { getUser } = await getKindeServerSession();
+  const user = await getUser();
 
   if (!user?.id) {
     throw new Error("User not found");
@@ -31,7 +32,8 @@ export async function createCheckoutSession() {
 }
 
 export async function createBillingPortalSession() {
-  const { user } = await getKindeServerSession();
+  const { getUser } = await getKindeServerSession();
+  const user = await getUser();
   if (!user?.id) {
     return false;
   }
@@ -50,7 +52,8 @@ export async function createBillingPortalSession() {
 }
 
 export async function getSubscriptionStatus() {
-  const { user } = await getKindeServerSession();
+  const { getUser } = await getKindeServerSession();
+  const user = await getUser();
   if (!user?.id) {
     return false;
   }

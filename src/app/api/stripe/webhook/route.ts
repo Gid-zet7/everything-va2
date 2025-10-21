@@ -19,13 +19,17 @@ export async function POST(req: Request) {
         return new NextResponse("webhook error", { status: 400 });
     }
 
-    const session = event.data.object as Stripe.Checkout.Session;
     console.log(event.type)
 
     // new subscription created
     if (event.type === "checkout.session.completed") {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
+        if (!subscriptionId) {
+            return new NextResponse("missing subscription id", { status: 400 });
+        }
         const subscription = await stripe.subscriptions.retrieve(
-            session.subscription as string,
+            subscriptionId,
             {
                 expand: ['items.data.price.product'],
             }
@@ -45,23 +49,31 @@ export async function POST(req: Request) {
             throw new Error('No product ID found for this subscription.');
         }
 
+        const createData: any = {
+            subscriptionId: subscription.id,
+            productId: productId,
+            priceId: plan.id,
+            customerId: subscription.customer as string,
+            userId: session.client_reference_id,
+        };
+        if (subscription.current_period_end) {
+            createData.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        }
         const stripeSubscription = await db.stripeSubscription.create({
-            data: {
-                subscriptionId: subscription.id,
-                productId: productId,
-                priceId: plan.id,
-                customerId: subscription.customer as string,
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-                userId: session.client_reference_id
-            }
+            data: createData
         })
 
         return NextResponse.json({ message: "success" }, { status: 200 });
     }
 
     if (event.type === "invoice.payment_succeeded") {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+        if (!subscriptionId) {
+            return new NextResponse("missing subscription id on invoice", { status: 400 });
+        }
         const subscription = await stripe.subscriptions.retrieve(
-            session.subscription as string,
+            subscriptionId,
             {
                 expand: ['items.data.price.product'],
             }
@@ -74,30 +86,36 @@ export async function POST(req: Request) {
 
         const productId = (plan.product as Stripe.Product).id;
 
+        const updateData: any = {
+            productId: productId,
+            priceId: plan.id,
+        };
+        if (subscription.current_period_end) {
+            updateData.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        }
         await db.stripeSubscription.update({
             where: {
                 subscriptionId: subscription.id
             },
-            data: {
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-                productId: productId,
-                priceId: plan.id,
-            }
+            data: updateData
         })
         return NextResponse.json({ message: "success" }, { status: 200 });
     }
 
     if (event.type === 'customer.subscription.updated') {
-        console.log('subscription updated', session)
-        const subscription = await stripe.subscriptions.retrieve(session.id as string);
+        const subscriptionEventObj = event.data.object as Stripe.Subscription;
+        const subscription = subscriptionEventObj;
+        const updateData: any = {
+            updatedAt: new Date(),
+        };
+        if (subscription.current_period_end) {
+            updateData.currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        }
         await db.stripeSubscription.update({
             where: {
-                subscriptionId: session.id as string
+                subscriptionId: subscription.id as string
             },
-            data: {
-                updatedAt: new Date(),
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            }
+            data: updateData
         })
         return NextResponse.json({ message: "success" }, { status: 200 });
     }

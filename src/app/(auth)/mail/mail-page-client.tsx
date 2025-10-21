@@ -6,7 +6,6 @@ import ComposeButton from "@/app/mail/components/compose-button";
 import WebhookDebugger from "@/app/mail/components/webhook-debugger";
 import TopAccountSwitcher from "./top-account-switcher";
 import MailClient from "@/app/mail/mail-client";
-import AuthoriseButton from "@/components/authorise-button";
 import Kbar from "@/app/mail/components/kbar";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
 
@@ -33,7 +32,6 @@ export default function MailPageClient({
           <div className="flex items-center gap-1 md:gap-2">
             <ModeToggle />
             <ComposeButton />
-            <AuthoriseButton />
             {process.env.NODE_ENV === "development" && <WebhookDebugger />}
           </div>
         </div>

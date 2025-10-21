@@ -358,11 +358,20 @@ const LandingPage = async () => {
                 <Card className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:border-amber-800 dark:from-amber-950/50 dark:to-orange-950/50">
                   <div className="p-8 text-center">
                     <h3 className="mb-4 text-2xl font-bold text-amber-900 dark:text-amber-100">
-                      Keyboard First
+                      Email Rule
                     </h3>
                     <p className="text-amber-700 dark:text-amber-300">
-                      Navigate your inbox without touching the mouse
+                      Create email rules to automatically organize your emails
                     </p>
+                    <div className="mb-4 flex w-full items-center justify-center">
+                      <Image
+                        src="/emailrule.png"
+                        alt="Email rule"
+                        width={600}
+                        height={300}
+                        className="h-72 w-auto"
+                      />
+                    </div>
                   </div>
                 </Card>
                 </CardSwap>
