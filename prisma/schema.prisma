@@ -363,6 +363,7 @@ model CalendarEvent {
     title       String
     description String?
     location    String?
+    color       String?  // Event color (sky, amber, violet, rose, emerald, orange)
     
     // Time details
     startTime   DateTime

@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Plus, RefreshCw, Clock, MapPin, Users } from "lucide-react";
 import { toast } from "sonner";
 import { CreateEventDialog } from "./components/create-event-dialog";
-import { CalendarView } from "./components/calendar-view";
 import { EventList } from "./components/event-list";
+import { EventCalendar, type CalendarEvent } from "@/components";
 
 export default function CalendarPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const {
@@ -19,11 +18,13 @@ export default function CalendarPage() {
     isLoading: calendarsLoading,
     refetch: refetchCalendars,
   } = api.calendar.getUserCalendars.useQuery();
+
+  // Use upstream provider events instead of DB (no Calendar table required)
   const {
     data: upcomingEvents,
     isLoading: eventsLoading,
     refetch: refetchEvents,
-  } = api.calendar.getUpcomingEvents.useQuery({ days: 7 });
+  } = api.calendar.getUpcomingEvents.useQuery({ days: 30 });
 
   const syncCalendarsMutation = api.calendar.syncCalendars.useMutation({
     onSuccess: () => {
@@ -35,6 +36,76 @@ export default function CalendarPage() {
       toast.error(`Failed to sync calendars: ${error.message}`);
     },
   });
+
+  // Use provider-backed create/update/delete
+  const createEventMutation = api.calendar.createEvent.useMutation({
+    onSuccess: () => {
+      toast.success("Event created successfully");
+      refetchEvents();
+    },
+    onError: (error) => {
+      toast.error(`Failed to create event: ${error.message}`);
+    },
+  });
+
+  const updateEventMutation = api.calendar.updateEvent.useMutation({
+    onSuccess: () => {
+      toast.success("Event updated successfully");
+      refetchEvents();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update event: ${error.message}`);
+    },
+  });
+
+  const deleteEventMutation = api.calendar.deleteEvent.useMutation({
+    onSuccess: () => {
+      toast.success("Event deleted successfully");
+      refetchEvents();
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete event: ${error.message}`);
+    },
+  });
+
+  // Fallback: create calendar locally and create DB event when provider calendar isn't available
+  const createCalendarMutation = api.calendar.createCalendar.useMutation({
+    onSuccess: () => {
+      toast.success("Calendar created");
+      refetchCalendars();
+    },
+    onError: (error) => {
+      toast.error(`Failed to create calendar: ${error.message}`);
+    },
+  });
+
+  const createDbEventMutation = api.calendar.createDbEvent?.useMutation
+    ? api.calendar.createDbEvent.useMutation({
+        onSuccess: () => {
+          toast.success("Event created (local)");
+          refetchEvents();
+        },
+        onError: (error) => {
+          toast.error(`Failed to create event (local): ${error.message}`);
+        },
+      })
+    : (undefined as any);
+
+  // Convert API events to EventCalendar format
+  const calendarEvents = useMemo(() => {
+    if (!upcomingEvents) return [];
+    
+    return upcomingEvents.map((event): CalendarEvent => ({
+      id: event.id,
+      title: event.title,
+      description: event.description ?? undefined,
+      location: event.location ?? undefined,
+      start: new Date(event.startTime),
+      end: new Date(event.endTime),
+      allDay: event.isAllDay,
+      color: (event.color as any) || "sky",
+    }));
+  }, [upcomingEvents]);
 
   const handleSyncCalendars = async () => {
     if (!calendars || calendars.length === 0) {
@@ -63,6 +134,84 @@ export default function CalendarPage() {
     });
   };
 
+  const handleEventAdd = async (event: CalendarEvent) => {
+    const first = calendars?.[0];
+
+    // If provider calendar present, create via provider API
+    if (first?.account?.id && first?.aurinkoCalendarId) {
+      createEventMutation.mutate({
+        accountId: first.account.id,
+        calendarId: first.aurinkoCalendarId,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startTime: event.start.toISOString(),
+        endTime: event.end.toISOString(),
+        isAllDay: event.allDay || false,
+      });
+      return;
+    }
+
+    // Otherwise, ensure a local calendar exists and create a DB event as a fallback
+    let targetCalendarId = first?.id;
+    if (!targetCalendarId) {
+      const res = await createCalendarMutation.mutateAsync({ name: "My Calendar", isPrimary: true });
+      targetCalendarId = (res as any)?.id;
+      await refetchCalendars();
+    }
+
+    if (targetCalendarId && createDbEventMutation) {
+      createDbEventMutation.mutate({
+        calendarId: targetCalendarId,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startTime: event.start.toISOString(),
+        endTime: event.end.toISOString(),
+        isAllDay: event.allDay || false,
+      });
+    } else {
+      toast.error("Could not determine a calendar to save the event.");
+    }
+  };
+
+  const handleEventUpdate = (event: CalendarEvent) => {
+    // Need the provider account/calendar context from the event list; find by id if present
+    const src = (upcomingEvents as any[])?.find((e) => e.id === event.id);
+    const accountId = src?.accountId || calendars?.[0]?.account?.id;
+    const calendarId = src?.calendarId || calendars?.[0]?.aurinkoCalendarId;
+    if (!accountId || !calendarId) {
+      toast.error("Missing calendar context for update.");
+      return;
+    }
+    updateEventMutation.mutate({
+      accountId,
+      calendarId,
+      eventId: event.id,
+      title: event.title,
+      description: event.description,
+      location: event.location,
+      startTime: event.start.toISOString(),
+      endTime: event.end.toISOString(),
+      isAllDay: event.allDay || false,
+    });
+  };
+
+  const handleEventDelete = (eventId: string) => {
+    const src = (upcomingEvents as any[])?.find((e) => e.id === eventId);
+    const accountId = src?.accountId || calendars?.[0]?.account?.id;
+    const calendarId = src?.calendarId || calendars?.[0]?.aurinkoCalendarId;
+    if (!accountId || !calendarId) {
+      toast.error("Missing calendar context for delete.");
+      return;
+    }
+    deleteEventMutation.mutate({
+      accountId,
+      calendarId,
+      eventId,
+    });
+  };
+
   return (
     <div className="container mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -83,10 +232,10 @@ export default function CalendarPage() {
             />
             Sync Calendars
           </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          {/* <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Event
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -97,14 +246,15 @@ export default function CalendarPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Calendar View
+                Calendar
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <CalendarView
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-                calendars={calendars || []}
+              <EventCalendar
+                events={calendarEvents}
+                onEventAdd={handleEventAdd}
+                onEventUpdate={handleEventUpdate}
+                onEventDelete={handleEventDelete}
               />
             </CardContent>
           </Card>
@@ -193,7 +343,7 @@ export default function CalendarPage() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         calendars={calendars || []}
-        selectedDate={selectedDate}
+        selectedDate={new Date()}
         onEventCreated={() => {
           refetchEvents();
           setIsCreateDialogOpen(false);

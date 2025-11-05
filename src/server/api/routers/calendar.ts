@@ -17,7 +17,7 @@ export const calendarRouter = createTRPCRouter({
       const calendars = await db.calendar.findMany({
         where: {
           account: {
-            userId: ctx.userId,
+            userId: ctx.auth.id,
           },
         },
         include: {
@@ -197,7 +197,7 @@ export const calendarRouter = createTRPCRouter({
         const userCalendars = await db.calendar.findMany({
           where: {
             account: {
-              userId: ctx.userId,
+              userId: ctx.auth.id,
             },
           },
           include: {
@@ -227,6 +227,8 @@ export const calendarRouter = createTRPCRouter({
                 calendarName: calendar.name,
                 calendarColor: calendar.color,
                 accountEmail: calendar.account.emailAddress,
+                accountId: calendar.account.id,
+                calendarId: calendar.aurinkoCalendarId,
               }))
             );
           } catch (error) {
@@ -243,6 +245,260 @@ export const calendarRouter = createTRPCRouter({
         console.error("Error fetching upcoming events:", error);
         throw new Error("Failed to fetch upcoming events");
       }
+    }),
+
+  // Get all user events from database
+  getDbEvents: protectedProcedure.query(async ({ ctx }) => {
+    try {
+      const userCalendars = await db.calendar.findMany({
+        where: {
+          account: {
+            userId: ctx.auth.id,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const events = await db.calendarEvent.findMany({
+        where: {
+          calendarId: {
+            in: userCalendars.map((c) => c.id),
+          },
+        },
+        include: {
+          calendar: {
+            include: {
+              account: {
+                select: {
+                  emailAddress: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          startTime: "asc",
+        },
+      });
+
+      return events.map((event) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startTime: event.startTime.toISOString(),
+        endTime: event.endTime.toISOString(),
+        isAllDay: event.isAllDay,
+        calendarName: event.calendar.name,
+        calendarColor: event.calendar.color,
+        accountEmail: event.calendar.account.emailAddress,
+        color: event.calendar.color || "sky",
+      }));
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      throw new Error("Failed to fetch events");
+    }
+  }),
+
+  // Create a new event in database
+  createDbEvent: protectedProcedure
+    .input(
+      z.object({
+        calendarId: z.string(),
+        title: z.string(),
+        description: z.string().optional(),
+        location: z.string().optional(),
+        startTime: z.string(),
+        endTime: z.string(),
+        isAllDay: z.boolean().default(false),
+        recurrence: z.any().optional(),
+        attendees: z.any().optional(),
+        meetingUrl: z.string().optional(),
+        reminders: z.any().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Verify the calendar belongs to the user
+        const calendar = await db.calendar.findFirst({
+          where: {
+            id: input.calendarId,
+            account: {
+              userId: ctx.auth.id,
+            },
+          },
+        });
+
+        if (!calendar) {
+          throw new Error("Calendar not found");
+        }
+
+        const event = await db.calendarEvent.create({
+          data: {
+            calendarId: input.calendarId,
+            title: input.title,
+            description: input.description || null,
+            location: input.location || null,
+            startTime: new Date(input.startTime),
+            endTime: new Date(input.endTime),
+            isAllDay: input.isAllDay,
+            recurrence: input.recurrence || null,
+            attendees: input.attendees || null,
+            meetingUrl: input.meetingUrl || null,
+            reminders: input.reminders || null,
+          },
+        });
+
+        return event;
+      } catch (error) {
+        console.error("Error creating event:", error);
+        throw new Error("Failed to create event");
+      }
+    }),
+
+  // Update an event in database
+  updateDbEvent: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        location: z.string().optional(),
+        startTime: z.string().optional(),
+        endTime: z.string().optional(),
+        isAllDay: z.boolean().optional(),
+        recurrence: z.any().optional(),
+        attendees: z.any().optional(),
+        meetingUrl: z.string().optional(),
+        reminders: z.any().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const { eventId, ...updateData } = input;
+
+        // Verify the event belongs to the user's calendar
+        const event = await db.calendarEvent.findFirst({
+          where: {
+            id: eventId,
+            calendar: {
+              account: {
+                userId: ctx.auth.id,
+              },
+            },
+          },
+        });
+
+        if (!event) {
+          throw new Error("Event not found");
+        }
+
+        const updatedData: any = {};
+        if (updateData.title !== undefined) updatedData.title = updateData.title;
+        if (updateData.description !== undefined)
+          updatedData.description = updateData.description;
+        if (updateData.location !== undefined) updatedData.location = updateData.location;
+        if (updateData.startTime !== undefined)
+          updatedData.startTime = new Date(updateData.startTime);
+        if (updateData.endTime !== undefined)
+          updatedData.endTime = new Date(updateData.endTime);
+        if (updateData.isAllDay !== undefined) updatedData.isAllDay = updateData.isAllDay;
+        if (updateData.recurrence !== undefined) updatedData.recurrence = updateData.recurrence;
+        if (updateData.attendees !== undefined) updatedData.attendees = updateData.attendees;
+        if (updateData.meetingUrl !== undefined) updatedData.meetingUrl = updateData.meetingUrl;
+        if (updateData.reminders !== undefined) updatedData.reminders = updateData.reminders;
+
+        const updatedEvent = await db.calendarEvent.update({
+          where: {
+            id: eventId,
+          },
+          data: updatedData,
+        });
+
+        return updatedEvent;
+      } catch (error) {
+        console.error("Error updating event:", error);
+        throw new Error("Failed to update event");
+      }
+    }),
+
+  // Delete an event from database
+  deleteDbEvent: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Verify the event belongs to the user's calendar
+        const event = await db.calendarEvent.findFirst({
+          where: {
+            id: input.eventId,
+            calendar: {
+              account: {
+                userId: ctx.auth.id,
+              },
+            },
+          },
+        });
+
+        if (!event) {
+          throw new Error("Event not found");
+        }
+
+        await db.calendarEvent.delete({
+          where: {
+            id: input.eventId,
+          },
+        });
+
+        return { success: true };
+      } catch (error) {
+        console.error("Error deleting event:", error);
+        throw new Error("Failed to delete event");
+      }
+    }),
+
+  // Create a new calendar without syncing
+  createCalendar: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        color: z.string().optional(),
+        isPrimary: z.boolean().optional(),
+        accountId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const accountId = input.accountId
+        ? input.accountId
+        : (
+            await ctx.db.account.findFirst({
+              where: { userId: ctx.auth.id },
+              select: { id: true },
+            })
+          )?.id;
+
+      if (!accountId) {
+        throw new Error("No account found to attach the calendar to");
+      }
+
+      const calendar = await ctx.db.calendar.create({
+        data: {
+          accountId,
+          name: input.name,
+          description: input.description ?? null,
+          color: input.color ?? "#3b82f6",
+          isPrimary: input.isPrimary ?? false,
+          // aurinkoCalendarId intentionally left null; can be set later via sync
+        },
+      });
+
+      return calendar;
     }),
 });
 
