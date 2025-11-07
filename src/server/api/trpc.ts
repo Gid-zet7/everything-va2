@@ -6,7 +6,7 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
@@ -28,7 +28,9 @@ import { getKindeUserForAPI } from "@/lib/kinde";
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   try {
     const user = await getKindeUserForAPI();
-    // console.log("tRPC context user:", user);
+    if (process.env.NODE_ENV === "development") {
+      console.log("tRPC context user:", user ? { id: user.id, email: user.email } : "null");
+    }
 
     // If user exists, ensure they're in our database
     if (user?.id && user?.email) {
@@ -140,9 +142,15 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   return result;
 });
 
-const isAuth = t.middleware(({ next, ctx }) => {
+const isAuth = t.middleware(({ next, ctx, path }) => {
   if (!ctx.auth?.id) {
-    throw new Error("Unauthorized");
+    if (process.env.NODE_ENV === "development") {
+      console.error(`[TRPC] Unauthorized access attempt to ${path}`);
+    }
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be logged in to perform this action",
+    });
   }
   return next({
     ctx: { ...ctx, auth: ctx.auth! as Required<typeof ctx.auth> },
@@ -157,4 +165,4 @@ const isAuth = t.middleware(({ next, ctx }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
-export const protectedProcedure = t.procedure.use(isAuth);
+export const protectedProcedure = t.procedure.use(timingMiddleware).use(isAuth);

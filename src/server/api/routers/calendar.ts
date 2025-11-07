@@ -183,15 +183,19 @@ export const calendarRouter = createTRPCRouter({
       }
     }),
 
-  // Get upcoming events across all user calendars
+  // Get upcoming events across all user calendars (both provider and database events)
   getUpcomingEvents: protectedProcedure
     .input(z.object({
       days: z.number().default(7), // Number of days to look ahead
+      includePast: z.boolean().optional().default(false), // Include past events
     }))
     .query(async ({ ctx, input }) => {
       try {
-        const startDate = new Date();
-        const endDate = new Date();
+        const now = new Date();
+        const startDate = input.includePast 
+          ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days ago
+          : now;
+        const endDate = new Date(now);
         endDate.setDate(endDate.getDate() + input.days);
 
         const userCalendars = await db.calendar.findMany({
@@ -212,29 +216,83 @@ export const calendarRouter = createTRPCRouter({
 
         const allEvents = [];
 
+        // Fetch provider events (from Aurinko) for calendars with aurinkoCalendarId
         for (const calendar of userCalendars) {
-          try {
-            const events = await getCalendarEvents(
-              calendar.account.id,
-              calendar.aurinkoCalendarId!,
-              startDate.toISOString(),
-              endDate.toISOString()
-            );
+          if (calendar.aurinkoCalendarId) {
+            try {
+              const events = await getCalendarEvents(
+                calendar.account.id,
+                calendar.aurinkoCalendarId,
+                startDate.toISOString(),
+                endDate.toISOString()
+              );
 
-            allEvents.push(
-              ...events.map(event => ({
-                ...event,
-                calendarName: calendar.name,
-                calendarColor: calendar.color,
-                accountEmail: calendar.account.emailAddress,
-                accountId: calendar.account.id,
-                calendarId: calendar.aurinkoCalendarId,
-              }))
-            );
-          } catch (error) {
-            console.error(`Error fetching events for calendar ${calendar.id}:`, error);
-            // Continue with other calendars even if one fails
+              allEvents.push(
+                ...events.map(event => ({
+                  ...event,
+                  color: (event as any).color || calendar.color || "sky",
+                  calendarName: calendar.name,
+                  calendarColor: calendar.color,
+                  accountEmail: calendar.account.emailAddress,
+                  accountId: calendar.account.id,
+                  calendarId: calendar.aurinkoCalendarId,
+                }))
+              );
+            } catch (error) {
+              console.error(`Error fetching provider events for calendar ${calendar.id}:`, error);
+              // Continue with other calendars even if one fails
+            }
           }
+        }
+
+        // Fetch database events
+        const calendarIds = userCalendars.map(c => c.id);
+        if (calendarIds.length > 0) {
+          const dbEvents = await db.calendarEvent.findMany({
+            where: {
+              calendarId: {
+                in: calendarIds,
+              },
+              startTime: {
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+            include: {
+              calendar: {
+                include: {
+                  account: {
+                    select: {
+                      id: true,
+                      emailAddress: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: {
+              startTime: "asc",
+            },
+          });
+
+          // Convert database events to the same format as provider events
+          allEvents.push(
+            ...dbEvents.map(event => ({
+              id: event.id,
+              title: event.title,
+              description: event.description || undefined,
+              location: event.location || undefined,
+              startTime: event.startTime.toISOString(),
+              endTime: event.endTime.toISOString(),
+              isAllDay: event.isAllDay,
+              color: event.color || event.calendar.color || "sky",
+              calendarName: event.calendar.name,
+              calendarColor: event.calendar.color,
+              accountEmail: event.calendar.account.emailAddress,
+              accountId: event.calendar.account.id,
+              calendarId: event.calendar.aurinkoCalendarId,
+            }))
+          );
         }
 
         // Sort events by start time
@@ -313,6 +371,7 @@ export const calendarRouter = createTRPCRouter({
         startTime: z.string(),
         endTime: z.string(),
         isAllDay: z.boolean().default(false),
+        color: z.string().optional(),
         recurrence: z.any().optional(),
         attendees: z.any().optional(),
         meetingUrl: z.string().optional(),
@@ -344,6 +403,7 @@ export const calendarRouter = createTRPCRouter({
             startTime: new Date(input.startTime),
             endTime: new Date(input.endTime),
             isAllDay: input.isAllDay,
+            color: input.color || calendar.color || "sky",
             recurrence: input.recurrence || null,
             attendees: input.attendees || null,
             meetingUrl: input.meetingUrl || null,
@@ -369,6 +429,7 @@ export const calendarRouter = createTRPCRouter({
         startTime: z.string().optional(),
         endTime: z.string().optional(),
         isAllDay: z.boolean().optional(),
+        color: z.string().optional(),
         recurrence: z.any().optional(),
         attendees: z.any().optional(),
         meetingUrl: z.string().optional(),
@@ -389,6 +450,13 @@ export const calendarRouter = createTRPCRouter({
               },
             },
           },
+          include: {
+            calendar: {
+              select: {
+                color: true,
+              },
+            },
+          },
         });
 
         if (!event) {
@@ -405,6 +473,12 @@ export const calendarRouter = createTRPCRouter({
         if (updateData.endTime !== undefined)
           updatedData.endTime = new Date(updateData.endTime);
         if (updateData.isAllDay !== undefined) updatedData.isAllDay = updateData.isAllDay;
+        if (updateData.color !== undefined) {
+          updatedData.color = updateData.color;
+        } else if (!event.color) {
+          // If color is not provided and event doesn't have one, use calendar's color
+          updatedData.color = event.calendar.color || "sky";
+        }
         if (updateData.recurrence !== undefined) updatedData.recurrence = updateData.recurrence;
         if (updateData.attendees !== undefined) updatedData.attendees = updateData.attendees;
         if (updateData.meetingUrl !== undefined) updatedData.meetingUrl = updateData.meetingUrl;

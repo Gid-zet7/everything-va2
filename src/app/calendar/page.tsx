@@ -18,14 +18,18 @@ export default function CalendarPage() {
     isLoading: calendarsLoading,
     refetch: refetchCalendars,
   } = api.calendar.getUserCalendars.useQuery();
+  console.log("calendars", calendars);
 
-  // Use upstream provider events instead of DB (no Calendar table required)
+  // Fetch events for calendar display (90 days to cover month views)
   const {
     data: upcomingEvents,
     isLoading: eventsLoading,
     refetch: refetchEvents,
-  } = api.calendar.getUpcomingEvents.useQuery({ days: 30 });
-
+  } = api.calendar.getUpcomingEvents.useQuery({ 
+    days: 90, // Fetch 90 days ahead to cover month views
+    includePast: true, // Include past events for calendar display
+  });
+  console.log("upcomingEvents", upcomingEvents);
   const syncCalendarsMutation = api.calendar.syncCalendars.useMutation({
     onSuccess: () => {
       toast.success("Calendars synced successfully");
@@ -95,16 +99,19 @@ export default function CalendarPage() {
   const calendarEvents = useMemo(() => {
     if (!upcomingEvents) return [];
     
-    return upcomingEvents.map((event): CalendarEvent => ({
-      id: event.id,
-      title: event.title,
-      description: event.description ?? undefined,
-      location: event.location ?? undefined,
-      start: new Date(event.startTime),
-      end: new Date(event.endTime),
-      allDay: event.isAllDay,
-      color: (event.color as any) || "sky",
-    }));
+    return upcomingEvents.map((event): CalendarEvent => {
+      const eventAny = event as any;
+      return {
+        id: event.id,
+        title: event.title,
+        description: event.description ?? undefined,
+        location: event.location ?? undefined,
+        start: new Date(event.startTime),
+        end: new Date(event.endTime),
+        allDay: event.isAllDay,
+        color: (eventAny.color || event.calendarColor || "sky") as any,
+      };
+    });
   }, [upcomingEvents]);
 
   const handleSyncCalendars = async () => {
@@ -169,6 +176,7 @@ export default function CalendarPage() {
         startTime: event.start.toISOString(),
         endTime: event.end.toISOString(),
         isAllDay: event.allDay || false,
+        color: event.color || undefined,
       });
     } else {
       toast.error("Could not determine a calendar to save the event.");
