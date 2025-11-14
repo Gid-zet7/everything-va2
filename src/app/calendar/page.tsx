@@ -1,23 +1,38 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Plus, RefreshCw, Clock, MapPin, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useLocalStorage } from "usehooks-ts";
 import { CreateEventDialog } from "./components/create-event-dialog";
 import { EventList } from "./components/event-list";
+import { CalendarSwitcher } from "./components/calendar-switcher";
 import { EventCalendar, type CalendarEvent } from "@/components";
 
 export default function CalendarPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [accountId] = useLocalStorage("calendarAccountId", "");
+  const [calendarId, setCalendarId] = useLocalStorage("calendarId", "all");
 
+  // Migrate old empty string values to "all"
+  useEffect(() => {
+    if (calendarId === "") {
+      setCalendarId("all");
+    }
+  }, [calendarId, setCalendarId]);
+
+  // Get calendars for the selected account
   const {
     data: calendars,
     isLoading: calendarsLoading,
     refetch: refetchCalendars,
-  } = api.calendar.getUserCalendars.useQuery();
+  } = api.calendar.getCalendarsByAccount.useQuery(
+    { accountId: accountId || "" },
+    { enabled: !!accountId }
+  );
   console.log("calendars", calendars);
 
   // Fetch events for calendar display (90 days to cover month views)
@@ -28,6 +43,10 @@ export default function CalendarPage() {
   } = api.calendar.getUpcomingEvents.useQuery({ 
     days: 90, // Fetch 90 days ahead to cover month views
     includePast: true, // Include past events for calendar display
+    accountId: accountId || undefined, // Filter by selected account
+    calendarId: calendarId && calendarId !== "all" ? calendarId : undefined, // Filter by selected calendar, or show all if "all"
+  }, {
+    enabled: !!accountId, // Only fetch if account is selected
   });
   console.log("upcomingEvents", upcomingEvents);
   const syncCalendarsMutation = api.calendar.syncCalendars.useMutation({
@@ -115,16 +134,12 @@ export default function CalendarPage() {
   }, [upcomingEvents]);
 
   const handleSyncCalendars = async () => {
-    if (!calendars || calendars.length === 0) {
-      toast.error("No calendars found to sync");
+    if (!accountId) {
+      toast.error("Please select an account first");
       return;
     }
 
-    // Sync the first account's calendars (you might want to sync all accounts)
-    const firstCalendar = calendars[0];
-    if (firstCalendar?.account?.id) {
-      syncCalendarsMutation.mutate({ accountId: firstCalendar.account.id });
-    }
+    syncCalendarsMutation.mutate({ accountId });
   };
 
   const formatTime = (dateString: string) => {
@@ -142,13 +157,24 @@ export default function CalendarPage() {
   };
 
   const handleEventAdd = async (event: CalendarEvent) => {
-    const first = calendars?.[0];
+    // Use selected calendar, or fallback to primary/first calendar
+    let selectedCalendar = calendars?.find(c => c.id === calendarId);
+    
+    // If no calendar selected or "All Calendars" is selected, use primary or first
+    if (!selectedCalendar) {
+      selectedCalendar = calendars?.find(c => c.isPrimary) || calendars?.[0];
+    }
+
+    if (!selectedCalendar) {
+      toast.error("Please select a calendar first");
+      return;
+    }
 
     // If provider calendar present, create via provider API
-    if (first?.account?.id && first?.aurinkoCalendarId) {
+    if (selectedCalendar.account?.id && selectedCalendar.aurinkoCalendarId) {
       createEventMutation.mutate({
-        accountId: first.account.id,
-        calendarId: first.aurinkoCalendarId,
+        accountId: selectedCalendar.account.id,
+        calendarId: selectedCalendar.aurinkoCalendarId,
         title: event.title,
         description: event.description,
         location: event.location,
@@ -159,17 +185,10 @@ export default function CalendarPage() {
       return;
     }
 
-    // Otherwise, ensure a local calendar exists and create a DB event as a fallback
-    let targetCalendarId = first?.id;
-    if (!targetCalendarId) {
-      const res = await createCalendarMutation.mutateAsync({ name: "My Calendar", isPrimary: true });
-      targetCalendarId = (res as any)?.id;
-      await refetchCalendars();
-    }
-
-    if (targetCalendarId && createDbEventMutation) {
+    // Otherwise, create a DB event as a fallback
+    if (createDbEventMutation) {
       createDbEventMutation.mutate({
-        calendarId: targetCalendarId,
+        calendarId: selectedCalendar.id,
         title: event.title,
         description: event.description,
         location: event.location,
@@ -186,15 +205,18 @@ export default function CalendarPage() {
   const handleEventUpdate = (event: CalendarEvent) => {
     // Need the provider account/calendar context from the event list; find by id if present
     const src = (upcomingEvents as any[])?.find((e) => e.id === event.id);
-    const accountId = src?.accountId || calendars?.[0]?.account?.id;
-    const calendarId = src?.calendarId || calendars?.[0]?.aurinkoCalendarId;
-    if (!accountId || !calendarId) {
+    const selectedCalendar = calendars?.find(c => c.id === calendarId) || calendars?.[0];
+    
+    const eventAccountId = src?.accountId || selectedCalendar?.account?.id || accountId;
+    const aurinkoCalendarId = src?.calendarId || selectedCalendar?.aurinkoCalendarId;
+    
+    if (!eventAccountId || !aurinkoCalendarId) {
       toast.error("Missing calendar context for update.");
       return;
     }
     updateEventMutation.mutate({
-      accountId,
-      calendarId,
+      accountId: eventAccountId,
+      calendarId: aurinkoCalendarId,
       eventId: event.id,
       title: event.title,
       description: event.description,
@@ -207,15 +229,18 @@ export default function CalendarPage() {
 
   const handleEventDelete = (eventId: string) => {
     const src = (upcomingEvents as any[])?.find((e) => e.id === eventId);
-    const accountId = src?.accountId || calendars?.[0]?.account?.id;
-    const calendarId = src?.calendarId || calendars?.[0]?.aurinkoCalendarId;
-    if (!accountId || !calendarId) {
+    const selectedCalendar = calendars?.find(c => c.id === calendarId) || calendars?.[0];
+    
+    const eventAccountId = src?.accountId || selectedCalendar?.account?.id || accountId;
+    const aurinkoCalendarId = src?.calendarId || selectedCalendar?.aurinkoCalendarId;
+    
+    if (!eventAccountId || !aurinkoCalendarId) {
       toast.error("Missing calendar context for delete.");
       return;
     }
     deleteEventMutation.mutate({
-      accountId,
-      calendarId,
+      accountId: eventAccountId,
+      calendarId: aurinkoCalendarId,
       eventId,
     });
   };
@@ -244,6 +269,13 @@ export default function CalendarPage() {
             <Plus className="mr-2 h-4 w-4" />
             New Event
           </Button> */}
+        </div>
+      </div>
+
+      {/* Calendar Switcher */}
+      <div className="flex items-center gap-4">
+        <div className="w-full max-w-2xl">
+          <CalendarSwitcher />
         </div>
       </div>
 
@@ -294,7 +326,17 @@ export default function CalendarPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {calendarsLoading ? (
+              {!accountId ? (
+                <div className="py-8 text-center">
+                  <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <p className="mb-2 text-muted-foreground">
+                    No account selected
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Select an account to view calendars
+                  </p>
+                </div>
+              ) : calendarsLoading ? (
                 <div className="py-4 text-center">
                   <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin" />
                   <p className="text-sm text-muted-foreground">

@@ -38,6 +38,46 @@ export const calendarRouter = createTRPCRouter({
       return calendars;
     }),
 
+  // Get calendars for a specific account
+  getCalendarsByAccount: protectedProcedure
+    .input(z.object({
+      accountId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Verify the account belongs to the user
+      const account = await db.account.findFirst({
+        where: {
+          id: input.accountId,
+          userId: ctx.auth.id,
+        },
+      });
+
+      if (!account) {
+        throw new Error("Account not found or access denied");
+      }
+
+      const calendars = await db.calendar.findMany({
+        where: {
+          accountId: input.accountId,
+        },
+        include: {
+          account: {
+            select: {
+              id: true,
+              emailAddress: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: [
+          { isPrimary: "desc" },
+          { name: "asc" },
+        ],
+      });
+
+      return calendars;
+    }),
+
   // Sync calendars for an account
   syncCalendars: protectedProcedure
     .input(z.object({
@@ -188,6 +228,8 @@ export const calendarRouter = createTRPCRouter({
     .input(z.object({
       days: z.number().default(7), // Number of days to look ahead
       includePast: z.boolean().optional().default(false), // Include past events
+      calendarId: z.string().optional(), // Optional calendar ID to filter by
+      accountId: z.string().optional(), // Optional account ID to filter by
     }))
     .query(async ({ ctx, input }) => {
       try {
@@ -202,7 +244,9 @@ export const calendarRouter = createTRPCRouter({
           where: {
             account: {
               userId: ctx.auth.id,
+              ...(input.accountId ? { id: input.accountId } : {}),
             },
+            ...(input.calendarId ? { id: input.calendarId } : {}),
           },
           include: {
             account: {
@@ -250,9 +294,9 @@ export const calendarRouter = createTRPCRouter({
         if (calendarIds.length > 0) {
           const dbEvents = await db.calendarEvent.findMany({
             where: {
-              calendarId: {
-                in: calendarIds,
-              },
+              calendarId: input.calendarId 
+                ? input.calendarId 
+                : { in: calendarIds },
               startTime: {
                 gte: startDate,
                 lte: endDate,
@@ -394,6 +438,13 @@ export const calendarRouter = createTRPCRouter({
           throw new Error("Calendar not found");
         }
 
+        // Ensure color is always set - use provided color, calendar color, or default
+        const eventColor = (input.color && input.color.trim() !== "") 
+          ? input.color 
+          : (calendar.color && calendar.color.trim() !== "") 
+            ? calendar.color 
+            : "sky";
+
         const event = await db.calendarEvent.create({
           data: {
             calendarId: input.calendarId,
@@ -403,7 +454,7 @@ export const calendarRouter = createTRPCRouter({
             startTime: new Date(input.startTime),
             endTime: new Date(input.endTime),
             isAllDay: input.isAllDay,
-            color: input.color || calendar.color || "sky",
+            color: eventColor,
             recurrence: input.recurrence || null,
             attendees: input.attendees || null,
             meetingUrl: input.meetingUrl || null,
@@ -473,12 +524,22 @@ export const calendarRouter = createTRPCRouter({
         if (updateData.endTime !== undefined)
           updatedData.endTime = new Date(updateData.endTime);
         if (updateData.isAllDay !== undefined) updatedData.isAllDay = updateData.isAllDay;
+        
+        // Handle color: ensure it's always set to a valid value
         if (updateData.color !== undefined) {
-          updatedData.color = updateData.color;
-        } else if (!event.color) {
-          // If color is not provided and event doesn't have one, use calendar's color
-          updatedData.color = event.calendar.color || "sky";
+          // If color is provided, use it if it's not empty, otherwise use calendar color or default
+          updatedData.color = (updateData.color && updateData.color.trim() !== "")
+            ? updateData.color
+            : (event.calendar.color && event.calendar.color.trim() !== "")
+              ? event.calendar.color
+              : "sky";
+        } else if (!event.color || event.color.trim() === "") {
+          // If color is not provided and event doesn't have a valid color, use calendar's color or default
+          updatedData.color = (event.calendar.color && event.calendar.color.trim() !== "")
+            ? event.calendar.color
+            : "sky";
         }
+        
         if (updateData.recurrence !== undefined) updatedData.recurrence = updateData.recurrence;
         if (updateData.attendees !== undefined) updatedData.attendees = updateData.attendees;
         if (updateData.meetingUrl !== undefined) updatedData.meetingUrl = updateData.meetingUrl;
