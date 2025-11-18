@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { 
-  getCalendars, 
   getCalendarEvents, 
   createCalendarEvent, 
   updateCalendarEvent, 
@@ -127,6 +126,7 @@ export const calendarRouter = createTRPCRouter({
       startTime: z.string(),
       endTime: z.string(),
       isAllDay: z.boolean().default(false),
+      color: z.string().optional(),
       attendees: z.array(z.object({
         email: z.string(),
         name: z.string().optional(),
@@ -138,8 +138,27 @@ export const calendarRouter = createTRPCRouter({
         minutes: z.number(),
       })).optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
+        // Get the calendar to ensure we have the color available
+        const calendar = await db.calendar.findFirst({
+          where: {
+            aurinkoCalendarId: input.calendarId,
+            account: {
+              id: input.accountId,
+              userId: ctx.auth.id,
+            },
+          },
+          select: { color: true },
+        });
+
+        // Ensure color is always set
+        const eventColor = (input.color && input.color.trim() !== "") 
+          ? input.color 
+          : (calendar?.color && calendar.color.trim() !== "") 
+            ? calendar.color 
+            : "sky";
+
         const event = await createCalendarEvent(
           input.accountId,
           input.calendarId,
@@ -150,6 +169,7 @@ export const calendarRouter = createTRPCRouter({
             startTime: input.startTime,
             endTime: input.endTime,
             isAllDay: input.isAllDay,
+            color: eventColor,
             attendees: input.attendees,
             recurrence: input.recurrence,
             meetingUrl: input.meetingUrl,
@@ -175,6 +195,7 @@ export const calendarRouter = createTRPCRouter({
       startTime: z.string().optional(),
       endTime: z.string().optional(),
       isAllDay: z.boolean().optional(),
+      color: z.string().optional(),
       attendees: z.array(z.object({
         email: z.string(),
         name: z.string().optional(),
@@ -186,9 +207,31 @@ export const calendarRouter = createTRPCRouter({
         minutes: z.number(),
       })).optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       try {
         const { accountId, calendarId, eventId, ...eventData } = input;
+        
+        // If color is being updated, ensure it's valid
+        if (eventData.color !== undefined) {
+          const calendar = await db.calendar.findFirst({
+            where: {
+              aurinkoCalendarId: calendarId,
+              account: {
+                id: accountId,
+                userId: ctx.auth.id,
+              },
+            },
+            select: { color: true },
+          });
+          
+          // Ensure color is valid - use provided, calendar, or default
+          eventData.color = (eventData.color && eventData.color.trim() !== "") 
+            ? eventData.color 
+            : (calendar?.color && calendar.color.trim() !== "") 
+              ? calendar.color 
+              : "sky";
+        }
+        
         const event = await updateCalendarEvent(
           accountId,
           calendarId,
@@ -321,21 +364,30 @@ export const calendarRouter = createTRPCRouter({
 
           // Convert database events to the same format as provider events
           allEvents.push(
-            ...dbEvents.map(event => ({
-              id: event.id,
-              title: event.title,
-              description: event.description || undefined,
-              location: event.location || undefined,
-              startTime: event.startTime.toISOString(),
-              endTime: event.endTime.toISOString(),
-              isAllDay: event.isAllDay,
-              color: event.color || event.calendar.color || "sky",
-              calendarName: event.calendar.name,
-              calendarColor: event.calendar.color,
-              accountEmail: event.calendar.account.emailAddress,
-              accountId: event.calendar.account.id,
-              calendarId: event.calendar.aurinkoCalendarId,
-            }))
+            ...dbEvents.map(event => {
+              // Ensure color is never null - use event color, calendar color, or default
+              const eventColor = (event.color && event.color.trim() !== "") 
+                ? event.color 
+                : (event.calendar.color && event.calendar.color.trim() !== "") 
+                  ? event.calendar.color 
+                  : "sky";
+              
+              return {
+                id: event.id,
+                title: event.title,
+                description: event.description || undefined,
+                location: event.location || undefined,
+                startTime: event.startTime.toISOString(),
+                endTime: event.endTime.toISOString(),
+                isAllDay: event.isAllDay,
+                color: eventColor,
+                calendarName: event.calendar.name,
+                calendarColor: event.calendar.color,
+                accountEmail: event.calendar.account.emailAddress,
+                accountId: event.calendar.account.id,
+                calendarId: event.calendar.aurinkoCalendarId,
+              };
+            })
           );
         }
 
@@ -634,6 +686,54 @@ export const calendarRouter = createTRPCRouter({
       });
 
       return calendar;
+    }),
+
+  // Fix existing events with null colors (one-time migration)
+  fixEventColors: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      try {
+        // Get all calendars for the user
+        const userCalendars = await db.calendar.findMany({
+          where: {
+            account: {
+              userId: ctx.auth.id,
+            },
+          },
+          select: {
+            id: true,
+            color: true,
+          },
+        });
+
+        let fixedCount = 0;
+
+        // Fix events with null or empty colors for each calendar
+        for (const calendar of userCalendars) {
+          const calendarColor = (calendar.color && calendar.color.trim() !== "") 
+            ? calendar.color 
+            : "sky";
+
+          const result = await db.calendarEvent.updateMany({
+            where: {
+              calendarId: calendar.id,
+              OR: [
+                { color: null },
+                { color: "" },
+              ],
+            },
+            data: {
+              color: calendarColor,
+            },
+          });
+
+          fixedCount += result.count;
+        }
+
+        return { fixedCount };
+      } catch (error) {
+        console.error("Error fixing event colors:", error);
+        throw new Error("Failed to fix event colors");
+      }
     }),
 });
 

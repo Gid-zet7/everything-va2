@@ -547,7 +547,7 @@ const LandingPage = async () => {
         <div className="mx-auto max-w-6xl px-4">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-4xl font-bold text-foreground md:text-5xl">
-              Built with cutting-edge technology
+              Because Emails Shouldn't Stress You Out
             </h2>
             <p className="text-xl text-muted-foreground">
               🔮 Experience the future of email management

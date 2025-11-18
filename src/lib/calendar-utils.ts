@@ -11,6 +11,7 @@ export interface CalendarEvent {
   startTime: string;
   endTime: string;
   isAllDay: boolean;
+  color?: string;
   attendees?: Array<{
     email: string;
     name?: string;
@@ -104,6 +105,7 @@ export async function getCalendarEvents(
       startTime: event.startTime,
       endTime: event.endTime,
       isAllDay: event.isAllDay || false,
+      color: event.color || undefined, // Extract color from provider response
       attendees: event.attendees,
       recurrence: event.recurrence,
       meetingUrl: event.meetingUrl,
@@ -152,6 +154,7 @@ export async function createCalendarEvent(
       startTime: response.data.startTime,
       endTime: response.data.endTime,
       isAllDay: response.data.isAllDay || false,
+      color: response.data.color || undefined, // Extract color from provider response
       attendees: response.data.attendees,
       recurrence: response.data.recurrence,
       meetingUrl: response.data.meetingUrl,
@@ -201,6 +204,7 @@ export async function updateCalendarEvent(
       startTime: response.data.startTime,
       endTime: response.data.endTime,
       isAllDay: response.data.isAllDay || false,
+      color: response.data.color || undefined, // Extract color from provider response
       attendees: response.data.attendees,
       recurrence: response.data.recurrence,
       meetingUrl: response.data.meetingUrl,

@@ -9,6 +9,7 @@ import { emailAddressSchema } from "@/lib/types";
 import { FREE_CREDITS_PER_DAY } from "@/app/constants";
 import { EmailOrganizer } from "@/lib/email-organizer";
 import { checkAccountAuthStatus } from "@/lib/account-utils";
+import { syncEmailOrganizationToProvider } from "@/lib/provider-email-actions";
 
 export const authoriseAccountAccess = async (
   accountId: string,
@@ -706,10 +707,25 @@ export const mailRouter = createTRPCRouter({
         updateData.notes = input.notes;
       }
 
-      return await ctx.db.email.update({
+      const updatedEmail = await ctx.db.email.update({
         where: { id: input.emailId },
         data: updateData,
       });
+
+      if (input.status !== undefined || input.customLabels !== undefined) {
+        try {
+          await syncEmailOrganizationToProvider({
+            accountId: account.id,
+            emailProviderId: email.id,
+            status: input.status ?? null,
+            customLabels: input.customLabels,
+          });
+        } catch (error) {
+          console.error("Failed to sync provider organization:", error);
+        }
+      }
+
+      return updatedEmail;
     }),
 
   bulkUpdateEmails: protectedProcedure
@@ -774,6 +790,24 @@ export const mailRouter = createTRPCRouter({
         },
         data: updateData,
       });
+
+      if (input.status !== undefined || input.customLabels !== undefined) {
+        await Promise.all(
+          emails.map((email) =>
+            syncEmailOrganizationToProvider({
+              accountId: account.id,
+              emailProviderId: email.id,
+              status: input.status ?? null,
+              customLabels: input.customLabels,
+            }).catch((error) =>
+              console.error(
+                `Failed to sync provider organization for email ${email.id}:`,
+                error,
+              ),
+            ),
+          ),
+        );
+      }
 
       return { updatedCount: result.count };
     }),
