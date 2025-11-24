@@ -77,6 +77,7 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
 
   const { data: stats = [], refetch: refetchStats } =
     api.mail.getEmailStats.useQuery({ accountId }, { enabled: !!accountId });
+    console.log("stats", stats);
 
   const { data: rules = [], refetch: refetchRules } =
     api.mail.getEmailRules.useQuery({ accountId }, { enabled: !!accountId });
@@ -138,12 +139,16 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
   };
 
   const getCategoryStats = (categoryId: string) => {
-    const stat = stats.find((stat) => (stat as any).categoryId === categoryId);
-    return stat?._count &&
-      typeof stat._count === "object" &&
-      "id" in stat._count
-      ? (stat._count as any).id
-      : 0;
+    // Sum all counts for this category across all priority/status combinations
+    const categoryStats = stats.filter((stat) => (stat as any).categoryId === categoryId);
+    return categoryStats.reduce((sum, stat) => {
+      const count = stat?._count &&
+        typeof stat._count === "object" &&
+        "id" in stat._count
+        ? (stat._count as any).id
+        : 0;
+      return sum + count;
+    }, 0);
   };
 
   const getPriorityStats = (priority: string) => {
@@ -254,14 +259,15 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
               <div className="space-y-4">
                 {categories.map((category: any) => {
                   const count = getCategoryStats(category.id);
+                  // Calculate total emails across all categories (sum all stats)
                   const total = stats.reduce((sum, stat) => {
-                    const count =
+                    const statCount =
                       stat._count &&
                       typeof stat._count === "object" &&
                       "id" in stat._count
                         ? (stat._count as any).id
                         : 0;
-                    return sum + count;
+                    return sum + statCount;
                   }, 0);
                   const percentage = total > 0 ? (count / total) * 100 : 0;
 
@@ -273,10 +279,10 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
                             className="rounded p-1"
                             style={{
                               backgroundColor:
-                                getCategoryColor(category.color) + "20",
+                                getCategoryColor(category.color ?? undefined) + "20",
                             }}
                           >
-                            {getCategoryIcon(category.icon)}
+                            {getCategoryIcon(category.icon ?? undefined)}
                           </div>
                           <span className="font-medium">{category.name}</span>
                         </div>
@@ -313,10 +319,10 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
                       className="rounded-lg p-2"
                       style={{
                         backgroundColor:
-                          getCategoryColor(category.color) + "20",
+                          getCategoryColor(category.color ?? undefined) + "20",
                       }}
                     >
-                      {getCategoryIcon(category.icon)}
+                      {getCategoryIcon(category.icon ?? undefined)}
                     </div>
                     <div>
                       <CardTitle className="text-lg">{category.name}</CardTitle>

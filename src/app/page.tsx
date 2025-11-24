@@ -201,7 +201,7 @@ const LandingPage = async () => {
           { label: "Home", href: "/" },
           { label: "Features", href: "#features" },
           { label: "Demo", href: "#demo" },
-          { label: "Get Started", href: "/mail" },
+          { label: "Get Started", href: "/api/auth/register" },
         ]}
         activeHref="/"
         className="custom-nav"

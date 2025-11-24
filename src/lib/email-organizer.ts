@@ -427,20 +427,56 @@ export class EmailOrganizer {
   }
 
   static async getEmailStats(userId: string, accountId: string) {
+    // First, verify the account belongs to the user and get email count
+    const account = await db.account.findFirst({
+      where: {
+        id: accountId,
+        userId,
+      },
+    });
+
+    if (!account) {
+      console.error(`Account ${accountId} not found for user ${userId}`);
+      return [];
+    }
+
+    // Get all thread IDs for this account first
+    const threads = await db.thread.findMany({
+      where: {
+        accountId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const threadIds = threads.map(t => t.id);
+    
+    if (threadIds.length === 0) {
+      console.log(`No threads found for account ${accountId}`);
+      return [];
+    }
+
+    console.log(`Found ${threadIds.length} threads for account ${accountId}`);
+
+    // Group by categoryId, priority, and status using threadIds
+    // Note: categoryId can be null for uncategorized emails
     const stats = await db.email.groupBy({
       by: ["categoryId", "priority", "status"],
       where: {
-        thread: {
-          accountId,
-          account: {
-            userId,
-          },
+        threadId: {
+          in: threadIds,
         },
       },
       _count: {
         id: true,
       },
     });
+
+    console.log(`Stats query returned ${stats.length} groups`);
+    if (stats.length > 0) {
+      console.log("Stats sample:", JSON.stringify(stats.slice(0, 5), null, 2));
+    }
 
     return stats;
   }
