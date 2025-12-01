@@ -209,6 +209,7 @@ export function DayView({
                     view="month"
                     isFirstDay={isFirstDay}
                     isLastDay={isLastDay}
+                    color={event.color}
                   >
                     {/* Always show the title in day view for better usability */}
                     <div>{event.title}</div>

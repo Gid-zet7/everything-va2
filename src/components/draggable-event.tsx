@@ -110,6 +110,7 @@ export function DraggableEvent({
     }
   }
 
+  // Pass the database color from the event to EventItem
   return (
     <div
       ref={(node) => {
@@ -132,6 +133,7 @@ export function DraggableEvent({
         dndListeners={listeners}
         dndAttributes={attributes}
         aria-hidden={ariaHidden}
+        color={event.color} // <-- Pass the event color here
       />
     </div>
   )

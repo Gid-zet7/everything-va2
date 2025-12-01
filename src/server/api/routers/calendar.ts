@@ -323,6 +323,7 @@ export const calendarRouter = createTRPCRouter({
                   accountEmail: calendar.account.emailAddress,
                   accountId: calendar.account.id,
                   calendarId: calendar.aurinkoCalendarId,
+                  isProviderEvent: true, // Flag to indicate this is from provider
                 }))
               );
             } catch (error) {
@@ -386,6 +387,9 @@ export const calendarRouter = createTRPCRouter({
                 accountEmail: event.calendar.account.emailAddress,
                 accountId: event.calendar.account.id,
                 calendarId: event.calendar.aurinkoCalendarId,
+                isDbEvent: true, // Flag to indicate this is a database event
+                aurinkoEventId: event.aurinkoEventId || null, // Provider event ID if synced
+                dbCalendarId: event.calendarId, // Database calendar ID
               };
             })
           );

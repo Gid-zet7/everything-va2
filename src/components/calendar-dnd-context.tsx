@@ -364,6 +364,7 @@ export function CalendarDndProvider({
                 currentTime={currentTime || undefined}
                 isFirstDay={dragHandlePosition?.data?.isFirstDay !== false}
                 isLastDay={dragHandlePosition?.data?.isLastDay !== false}
+                color={activeEvent.color}
               />
             </div>
           )}

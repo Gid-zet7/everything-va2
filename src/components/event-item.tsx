@@ -5,7 +5,7 @@ import type { DraggableAttributes } from "@dnd-kit/core"
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities"
 import { differenceInMinutes, format, getMinutes, isPast } from "date-fns"
 
-import { getBorderRadiusClasses, getEventColorClasses } from "@/components"
+import { getBorderRadiusClasses, getEventColorClasses, getEventColorValue } from "@/components"
 import type { CalendarEvent } from "@/components/types"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +19,7 @@ const formatTimeWithOptionalMinutes = (date: Date) => {
 
 interface EventWrapperProps {
   event: CalendarEvent
+  color?: string
   isFirstDay?: boolean
   isLastDay?: boolean
   isDragging?: boolean
@@ -35,6 +36,7 @@ interface EventWrapperProps {
 // Shared wrapper component for event styling
 function EventWrapper({
   event,
+  color,
   isFirstDay = true,
   isLastDay = true,
   isDragging,
@@ -57,14 +59,18 @@ function EventWrapper({
 
   const isEventInPast = isPast(displayEnd)
 
+  // Instead of using Tailwind's bg-[] utility (which doesn't apply for dynamic colors), use style to set the backgroundColor directly.
+  const backgroundColor = color ? getEventColorValue(color) : event.color ? getEventColorValue(event.color) : undefined
+  
   return (
     <button
       className={cn(
         "flex size-full overflow-hidden px-1 text-left font-medium backdrop-blur-md transition outline-none select-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-dragging:cursor-grabbing data-dragging:shadow-lg data-past-event:line-through sm:px-2",
-        getEventColorClasses(event.color),
+        getEventColorClasses(undefined), // use only border/text from the color classes, no bg!
         getBorderRadiusClasses(isFirstDay, isLastDay),
         className
       )}
+      style={backgroundColor ? { backgroundColor } : undefined}
       data-dragging={isDragging || undefined}
       data-past-event={isEventInPast || undefined}
       onClick={onClick}
@@ -93,6 +99,7 @@ interface EventItemProps {
   dndAttributes?: DraggableAttributes
   onMouseDown?: (e: React.MouseEvent) => void
   onTouchStart?: (e: React.TouchEvent) => void
+  color?: string
 }
 
 export function EventItem({
@@ -110,8 +117,11 @@ export function EventItem({
   dndAttributes,
   onMouseDown,
   onTouchStart,
+  color,
 }: EventItemProps) {
-  const eventColor = event.color
+  const eventColor = color ?? event.color
+  // console.log(`color: ${color}`)
+  // console.log(`eventColor: ${eventColor}`)
 
   // Use the provided currentTime (for dragging) or the event's actual time
   const displayStart = useMemo(() => {
@@ -148,12 +158,13 @@ export function EventItem({
     return (
       <EventWrapper
         event={event}
+        color={eventColor}
         isFirstDay={isFirstDay}
         isLastDay={isLastDay}
         isDragging={isDragging}
         onClick={onClick}
         className={cn(
-          "mt-[var(--event-gap)] h-[var(--event-height)] items-center text-[10px] sm:text-xs",
+          `mt-[var(--event-gap)] h-[var(--event-height)] items-center text-[10px] sm:text-xs`,
           className
         )}
         currentTime={currentTime}
@@ -180,6 +191,7 @@ export function EventItem({
     return (
       <EventWrapper
         event={event}
+        color={eventColor}
         isFirstDay={isFirstDay}
         isLastDay={isLastDay}
         isDragging={isDragging}
@@ -224,9 +236,10 @@ export function EventItem({
     <button
       className={cn(
         "flex w-full flex-col gap-1 rounded p-2 text-left transition outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 data-past-event:line-through data-past-event:opacity-90",
-        getEventColorClasses(eventColor),
+        getEventColorClasses(undefined), // don't use getEventColorClasses for bg
         className
       )}
+      style={eventColor ? { backgroundColor: getEventColorValue(eventColor) } : undefined}
       data-past-event={isPast(new Date(event.end)) || undefined}
       onClick={onClick}
       onMouseDown={onMouseDown}

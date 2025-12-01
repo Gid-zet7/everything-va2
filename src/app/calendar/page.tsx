@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Plus, RefreshCw, Clock, MapPin, Users } from "lucide-react";
+import { Calendar, Plus, RefreshCw, Clock, MapPin, Users, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useLocalStorage } from "usehooks-ts";
+import { isPast } from "date-fns";
 import { CreateEventDialog } from "./components/create-event-dialog";
 import { EventList } from "./components/event-list";
 import { CalendarSwitcher } from "./components/calendar-switcher";
@@ -81,7 +83,27 @@ export default function CalendarPage() {
     },
   });
 
+  const updateDbEventMutation = api.calendar.updateDbEvent?.useMutation({
+    onSuccess: () => {
+      toast.success("Event updated successfully");
+      refetchEvents();
+    },
+    onError: (error) => {
+      toast.error(`Failed to update event: ${error.message}`);
+    },
+  });
+
   const deleteEventMutation = api.calendar.deleteEvent.useMutation({
+    onSuccess: () => {
+      toast.success("Event deleted successfully");
+      refetchEvents();
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete event: ${error.message}`);
+    },
+  });
+
+  const deleteDbEventMutation = api.calendar.deleteDbEvent?.useMutation({
     onSuccess: () => {
       toast.success("Event deleted successfully");
       refetchEvents();
@@ -113,6 +135,22 @@ export default function CalendarPage() {
         },
       })
     : (undefined as any);
+
+  // Filter out past events for the upcoming events card
+  const upcomingEventsFiltered = useMemo(() => {
+    if (!upcomingEvents) return [];
+    
+    return upcomingEvents.filter((event) => {
+      // For all-day events, check if the start date is in the past
+      if (event.isAllDay) {
+        const eventStart = new Date(event.startTime);
+        eventStart.setHours(23, 59, 59, 999); // End of the start day
+        return !isPast(eventStart);
+      }
+      // For timed events, check if the end time is in the past
+      return !isPast(new Date(event.endTime));
+    });
+  }, [upcomingEvents]);
 
   // Convert API events to EventCalendar format
   const calendarEvents = useMemo(() => {
@@ -203,21 +241,51 @@ export default function CalendarPage() {
   };
 
   const handleEventUpdate = (event: CalendarEvent) => {
-    // Need the provider account/calendar context from the event list; find by id if present
+    // Find the source event to determine if it's a database event or provider event
     const src = (upcomingEvents as any[])?.find((e) => e.id === event.id);
-    const selectedCalendar = calendars?.find(c => c.id === calendarId) || calendars?.[0];
     
+    if (!src) {
+      toast.error("Event not found for update.");
+      return;
+    }
+    
+    // If it's a database event without aurinkoEventId, update in database
+    // If it has aurinkoEventId or is a provider event, update via provider API
+    const isDbOnlyEvent = src?.isDbEvent === true && !src?.aurinkoEventId;
+    
+    if (isDbOnlyEvent && updateDbEventMutation) {
+      // Update database-only event
+      updateDbEventMutation.mutate({
+        eventId: event.id,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startTime: event.start.toISOString(),
+        endTime: event.end.toISOString(),
+        isAllDay: event.allDay || false,
+        color: event.color,
+      });
+      return;
+    }
+    
+    // Update provider event (either direct provider event or synced database event)
+    const selectedCalendar = calendars?.find(c => c.id === calendarId) || calendars?.[0];
     const eventAccountId = src?.accountId || selectedCalendar?.account?.id || accountId;
     const aurinkoCalendarId = src?.calendarId || selectedCalendar?.aurinkoCalendarId;
     
-    if (!eventAccountId || !aurinkoCalendarId) {
+    // Use aurinkoEventId if available (synced database event), otherwise use event.id (provider event)
+    const providerEventId = src?.aurinkoEventId || event.id;
+    
+    if (!eventAccountId || !aurinkoCalendarId || !providerEventId) {
       toast.error("Missing calendar context for update.");
+      console.error("Update context:", { eventAccountId, aurinkoCalendarId, providerEventId, src });
       return;
     }
+    
     updateEventMutation.mutate({
       accountId: eventAccountId,
       calendarId: aurinkoCalendarId,
-      eventId: event.id,
+      eventId: providerEventId,
       title: event.title,
       description: event.description,
       location: event.location,
@@ -228,20 +296,44 @@ export default function CalendarPage() {
   };
 
   const handleEventDelete = (eventId: string) => {
+    // Find the source event to determine if it's a database event or provider event
     const src = (upcomingEvents as any[])?.find((e) => e.id === eventId);
-    const selectedCalendar = calendars?.find(c => c.id === calendarId) || calendars?.[0];
     
+    if (!src) {
+      toast.error("Event not found for deletion.");
+      return;
+    }
+    
+    // If it's a database event without aurinkoEventId, delete from database
+    // If it has aurinkoEventId or is a provider event, delete via provider API
+    const isDbOnlyEvent = src?.isDbEvent === true && !src?.aurinkoEventId;
+    
+    if (isDbOnlyEvent && deleteDbEventMutation) {
+      // Delete database-only event
+      deleteDbEventMutation.mutate({
+        eventId: eventId,
+      });
+      return;
+    }
+    
+    // Delete provider event (either direct provider event or synced database event)
+    const selectedCalendar = calendars?.find(c => c.id === calendarId) || calendars?.[0];
     const eventAccountId = src?.accountId || selectedCalendar?.account?.id || accountId;
     const aurinkoCalendarId = src?.calendarId || selectedCalendar?.aurinkoCalendarId;
     
-    if (!eventAccountId || !aurinkoCalendarId) {
+    // Use aurinkoEventId if available (synced database event), otherwise use eventId (provider event)
+    const providerEventId = src?.aurinkoEventId || eventId;
+    
+    if (!eventAccountId || !aurinkoCalendarId || !providerEventId) {
       toast.error("Missing calendar context for delete.");
+      console.error("Delete context:", { eventAccountId, aurinkoCalendarId, providerEventId, src });
       return;
     }
+    
     deleteEventMutation.mutate({
       accountId: eventAccountId,
       calendarId: aurinkoCalendarId,
-      eventId,
+      eventId: providerEventId,
     });
   };
 
@@ -255,6 +347,12 @@ export default function CalendarPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/mail">
+            <Button variant="outline">
+              <Mail className="mr-2 h-4 w-4" />
+              Back to Mail
+            </Button>
+          </Link>
           <Button
             variant="outline"
             onClick={handleSyncCalendars}
@@ -311,7 +409,7 @@ export default function CalendarPage() {
             </CardHeader>
             <CardContent>
               <EventList
-                events={upcomingEvents || []}
+                events={upcomingEventsFiltered}
                 isLoading={eventsLoading}
               />
             </CardContent>

@@ -6,6 +6,35 @@ import type {
 } from "@/components/types"
 
 /**
+ * Get CSS color value (rgba) for event background colors
+ * Matches the Tailwind color-200/50 opacity used in getEventColorClasses
+ */
+export function getEventColorValue(color?: EventColor | string): string | undefined {
+  const eventColor = color || "sky"
+
+  switch (eventColor) {
+    case "sky":
+      return "rgba(186, 230, 253, 0.5)" // sky-200/50
+    case "amber":
+      return "rgba(253, 230, 138, 0.5)" // amber-200/50
+    case "violet":
+      return "rgba(221, 214, 254, 0.5)" // violet-200/50
+    case "rose":
+      return "rgba(254, 205, 211, 0.5)" // rose-200/50
+    case "emerald":
+      return "rgba(167, 243, 208, 0.5)" // emerald-200/50
+    case "orange":
+      return "rgba(254, 215, 170, 0.5)" // orange-200/50
+    default:
+      // If it's already a valid CSS color (hex, rgb, etc.), return it as-is
+      if (eventColor && /^(#[0-9A-Fa-f]{3,6}|rgb|rgba|hsl|hsla)/.test(eventColor)) {
+        return eventColor
+      }
+      return "rgba(186, 230, 253, 0.5)" // default to sky-200/50
+  }
+}
+
+/**
  * Get CSS classes for event colors
  */
 export function getEventColorClasses(color?: EventColor | string): string {
