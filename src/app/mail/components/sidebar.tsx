@@ -3,15 +3,9 @@ import React from "react";
 import { Nav } from "./nav";
 
 import {
-  AlertCircle,
-  Archive,
-  ArchiveX,
   File,
   Inbox,
-  MessagesSquare,
   Send,
-  ShoppingCart,
-  Trash2,
   Users2,
   FolderOpen,
   Calendar,
@@ -19,7 +13,7 @@ import {
 
 import { useLocalStorage } from "usehooks-ts";
 import { api } from "@/trpc/react";
-import AuthoriseButton from "@/components/authorise-button";
+
 type Props = { isCollapsed: boolean };
 
 const SideBar = ({ isCollapsed }: Props) => {
@@ -78,7 +72,7 @@ const SideBar = ({ isCollapsed }: Props) => {
             title: "Email Setup",
             label: "",
             icon: Users2,
-            variant: tab === "setup" ? "default" : "ghost",
+            variant: tab === "setup" || tab === "email setup" ? "default" : "ghost",
           },
           {
             title: "Organizer",
@@ -95,11 +89,6 @@ const SideBar = ({ isCollapsed }: Props) => {
           },
         ]}
       />
-      {tab === "setup" && (
-        <div className="mt-4 px-2">
-          <AuthoriseButton />
-        </div>
-      )}
     </>
   );
 };

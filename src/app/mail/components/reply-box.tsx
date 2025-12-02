@@ -123,15 +123,25 @@ const Component = ({
             toast.success("Email sent");
             // editor?.commands.clearContent()
           },
-          onError: (error) => {
+          onError: (error: any) => {
             console.error("Error sending email:", error);
-            if (error.message.includes("400")) {
-              toast.error(
-                "Failed to send email: File attachments may be too large. Please try reducing the file sizes or removing some attachments.",
-              );
-            } else {
-              toast.error(`Failed to send email: ${error.message}`);
+            let errorMessage = error.message || "Failed to send email";
+            
+            // Check for specific error types
+            if (error.status === 400) {
+              const apiMessage = error.responseData?.message || error.responseData?.error;
+              if (apiMessage) {
+                errorMessage = `Failed to send email: ${apiMessage}`;
+              } else {
+                errorMessage = "Failed to send email: Invalid request. Please check that attachments are valid and within size limits (max 25MB per file, 50MB total).";
+              }
+            } else if (error.status === 413) {
+              errorMessage = "Failed to send email: File attachments are too large. Please reduce file sizes or remove some attachments.";
+            } else if (error.status === 401 || error.status === 403) {
+              errorMessage = "Failed to send email: Authentication failed. Please re-authorize your email account.";
             }
+            
+            toast.error(errorMessage);
           },
         },
       );

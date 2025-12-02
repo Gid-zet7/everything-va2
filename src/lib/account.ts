@@ -299,11 +299,51 @@ class Account {
 
       // Add attachments if provided
       if (attachments && attachments.length > 0) {
-        requestBody.attachments = attachments.map((attachment) => ({
-          name: attachment.name,
-          contentType: attachment.type,
-          content: attachment.content,
-        }));
+        requestBody.attachments = attachments.map((attachment) => {
+          // Ensure content is clean base64 (remove data URI prefix if present)
+          let content = attachment.content.trim();
+          if (content.includes(',')) {
+            // Remove data URI prefix (e.g., "data:image/png;base64,")
+            content = content.split(',')[1] || content;
+          }
+          
+          // Validate that content is not empty
+          if (!content || content.length === 0) {
+            throw new Error(`Attachment ${attachment.name} has empty content`);
+          }
+          
+          // Validate base64 format (basic check)
+          const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+          if (!base64Regex.test(content)) {
+            throw new Error(`Attachment ${attachment.name} has invalid base64 content`);
+          }
+          
+          // Determine content type with fallback
+          let contentType = attachment.type || 'application/octet-stream';
+          if (!contentType || contentType.trim() === '') {
+            // Try to infer from file extension
+            const extension = attachment.name.split('.').pop()?.toLowerCase();
+            const mimeTypes: Record<string, string> = {
+              'pdf': 'application/pdf',
+              'jpg': 'image/jpeg',
+              'jpeg': 'image/jpeg',
+              'png': 'image/png',
+              'gif': 'image/gif',
+              'txt': 'text/plain',
+              'doc': 'application/msword',
+              'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'xls': 'application/vnd.ms-excel',
+              'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            };
+            contentType = mimeTypes[extension || ''] || 'application/octet-stream';
+          }
+          
+          return {
+            name: attachment.name,
+            mimeType: contentType,
+            content: content,
+          };
+        });
       }
 
       const response = await axios.post(
@@ -313,7 +353,10 @@ class Account {
           params: {
             returnIds: true,
           },
-          headers: { Authorization: `Bearer ${this.token}` },
+          headers: { 
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
         },
       );
 
@@ -321,10 +364,26 @@ class Account {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        const errorDetails = {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+        };
         console.error(
           "Error sending email:",
-          JSON.stringify(error.response?.data, null, 2),
+          JSON.stringify(errorDetails, null, 2),
         );
+        
+        // Create a more descriptive error message
+        const errorMessage = error.response?.data?.message || 
+                           error.response?.data?.error || 
+                           `Request failed with status code ${error.response?.status}`;
+        
+        const enhancedError = new Error(errorMessage);
+        (enhancedError as any).status = error.response?.status;
+        (enhancedError as any).responseData = error.response?.data;
+        throw enhancedError;
       } else {
         console.error("Error sending email:", error);
       }

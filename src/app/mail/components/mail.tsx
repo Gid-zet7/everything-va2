@@ -21,6 +21,7 @@ import { isSearchingAtom } from "@/lib/atoms";
 import { useAtom } from "jotai";
 import AskAI from "./ask-ai";
 import { EmailOrganizer } from "./email-organizer";
+import AuthoriseButton from "@/components/authorise-button";
 
 interface MailProps {
   defaultLayout: number[] | undefined;
@@ -37,6 +38,9 @@ export function Mail({
   const [tab] = useLocalStorage("normalhuman-tab", "inbox");
   const [accountId] = useLocalStorage("accountId", "");
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
+  
+  // Normalize tab value for comparison (handle "email setup" or "setup")
+  const isSetupTab = tab === "setup" || tab === "email setup";
 
   // Clean up corrupted cookies on mount
   React.useEffect(() => {
@@ -145,6 +149,18 @@ export function Mail({
             <div className="h-full overflow-auto">
               <EmailOrganizer accountId={accountId} />
             </div>
+          ) : isSetupTab ? (
+            <div className="flex h-full flex-col items-center justify-center p-8">
+              <div className="w-full max-w-md space-y-4">
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold">Email Setup</h2>
+                  <p className="mt-2 text-muted-foreground">
+                    Connect your email account to get started
+                  </p>
+                </div>
+                <AuthoriseButton />
+              </div>
+            </div>
           ) : (
             <Tabs
               defaultValue="inbox"
@@ -187,7 +203,18 @@ export function Mail({
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={defaultLayout[2]} minSize={30}>
-          <ThreadDisplay />
+          {isSetupTab ? (
+            <div className="flex h-full items-center justify-center p-8">
+              <div className="text-center text-muted-foreground">
+                <p className="text-lg">Email Setup</p>
+                <p className="mt-2 text-sm">
+                  Use the authorize and sync buttons to connect your email account
+                </p>
+              </div>
+            </div>
+          ) : (
+            <ThreadDisplay />
+          )}
         </ResizablePanel>
       </ResizablePanelGroup>
     </TooltipProvider>
