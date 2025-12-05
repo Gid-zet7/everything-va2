@@ -6,7 +6,7 @@ import { openai } from '@ai-sdk/openai';
 import { createStreamableValue } from 'ai/rsc';
 
 export async function generateEmail(context: string, prompt: string) {
-    console.log("context", context)
+    // console.log("context", context)
     const stream = createStreamableValue('');
 
     (async () => {
@@ -50,7 +50,7 @@ export async function generateEmail(context: string, prompt: string) {
 export async function generate(input: string) {
     const stream = createStreamableValue('');
 
-    console.log("input", input);
+    // console.log("input", input);
     (async () => {
         const { textStream } = await streamText({
             model: openai('gpt-4'),

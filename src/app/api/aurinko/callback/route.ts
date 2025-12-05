@@ -56,10 +56,10 @@ export const GET = async (req: NextRequest) => {
     waitUntil(
       performInitialSync(userId, token.accountId.toString())
         .then((result) => {
-          console.log("Initial sync result:", result);
+          console.log("Initial sync result: success");
         })
         .catch((error) => {
-          console.error("Initial sync error:", error);
+          console.error("Initial sync error: failed");
         }),
     );
 

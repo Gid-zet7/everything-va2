@@ -59,8 +59,8 @@ const ComposeButton = () => {
   const sendEmail = api.mail.sendEmail.useMutation();
 
   const handleSend = async (value: string, attachments?: EmailAttachment[]) => {
-    console.log(account);
-    console.log({ value, attachments });
+    // console.log(account);
+    // console.log({ value, attachments });
     if (!account) return;
 
     try {

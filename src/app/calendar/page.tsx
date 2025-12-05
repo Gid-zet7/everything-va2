@@ -35,7 +35,7 @@ export default function CalendarPage() {
     { accountId: accountId || "" },
     { enabled: !!accountId }
   );
-  console.log("calendars", calendars);
+  // console.log("calendars", calendars);
 
   // Fetch events for calendar display (90 days to cover month views)
   const {
@@ -50,7 +50,7 @@ export default function CalendarPage() {
   }, {
     enabled: !!accountId, // Only fetch if account is selected
   });
-  console.log("upcomingEvents", upcomingEvents);
+  // console.log("upcomingEvents", upcomingEvents);
   const syncCalendarsMutation = api.calendar.syncCalendars.useMutation({
     onSuccess: () => {
       toast.success("Calendars synced successfully");

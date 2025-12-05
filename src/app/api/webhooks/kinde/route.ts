@@ -59,23 +59,23 @@ export async function POST(req: Request) {
         case "user.updated":
           // handle user updated event
           // e.g update database with event.data
-          console.log("User updated event:", event.data);
+          // console.log("User updated event:", event.data);
           await handleUserEvent(event.data, "update");
           break;
         case "user.created":
           // handle user created event
           // e.g add user to database with event.data
-          console.log("User created event:", event.data);
+          // console.log("User created event:", event.data);
           await handleUserEvent(event.data, "create");
           break;
         case "user.deleted":
           // handle user deleted event
-          console.log("User deleted event:", event.data);
+          // console.log("User deleted event:", event.data);
           await handleUserEvent(event.data, "delete");
           break;
         default:
           // other events that we don't handle
-          console.log("Unhandled event type:", event?.type);
+          // console.log("Unhandled event type:", event?.type);
           break;
       }
     } catch (error) {

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
         const session = await stripe.checkout.sessions.retrieve(sessionId, {
             expand: ['customer', 'subscription']
         });
-        console.log(JSON.stringify(session, null, 2));
+        // console.log(JSON.stringify(session, null, 2));
         if (!session.customer || typeof session.customer === 'string') {
             throw new Error('Invalid customer data from Stripe');
         }

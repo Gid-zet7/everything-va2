@@ -46,7 +46,7 @@ export const POST = async (req: NextRequest) => {
   };
 
   const payload = JSON.parse(body) as AurinkoNotification;
-  console.log("Received notification:", JSON.stringify(payload, null, 2));
+  // console.log("Received notification:", JSON.stringify(payload, null, 2));
   const account = await db.account.findUnique({
     where: {
       id: payload.accountId.toString(),

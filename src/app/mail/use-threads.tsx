@@ -15,7 +15,7 @@ const useThreads = () => {
   }, []);
 
   // Debug logging
-  console.log("useThreads debug:", { accounts, accountId, tab, done, mounted });
+  // console.log("useThreads debug:", { accounts, accountId, tab, done, mounted });
 
   const queryKey = getQueryKey(
     api.mail.getThreads,

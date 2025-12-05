@@ -8,6 +8,7 @@ export interface EmailOrganizationOptions {
   autoClassify?: boolean;
   createCategories?: boolean;
   applyRules?: boolean;
+  reorganize?: boolean; // If true, re-organize already classified emails
 }
 
 export class EmailOrganizer {
@@ -18,30 +19,43 @@ export class EmailOrganizer {
       autoClassify = true,
       createCategories = true,
       applyRules = true,
+      reorganize = false, // Default to false to only organize unorganized emails
     } = options;
 
     try {
-      // Get all unorganized emails for this account
-      const emails = await db.email.findMany({
-        where: {
-          thread: {
-            accountId: accountId,
-          },
-          classification: null, // Only emails that haven't been classified yet
+      // Build the where clause based on reorganize option
+      const whereClause: any = {
+        thread: {
+          accountId: accountId,
         },
+      };
+
+      // Only filter out classified emails if reorganize is false
+      if (!reorganize) {
+        whereClause.classification = null; // Only emails that haven't been classified yet
+      }
+
+      // Get emails for this account
+      const emails = await db.email.findMany({
+        where: whereClause,
         include: {
           from: true,
           to: true,
           cc: true,
           bcc: true,
-          thread: true,
+          thread: {
+            include: {
+              account: true, // Include account for rule application
+            },
+          },
+          classification: true, // Include existing classification
         },
         orderBy: {
           receivedAt: "desc",
         },
       });
 
-      console.log(`Found ${emails.length} emails to organize`);
+      console.log(`Found ${emails.length} email${emails.length !== 1 ? "s" : ""} to ${reorganize ? "re-organize" : "organize"}`);
 
       // Create default categories if requested
       if (createCategories) {
@@ -51,12 +65,16 @@ export class EmailOrganizer {
       // Process each email
       for (const email of emails) {
         try {
-          if (autoClassify) {
-            await this.classifyEmail(email, userId);
+          let ruleApplied = false;
+
+          // Apply rules FIRST - they should override classification
+          if (applyRules) {
+            ruleApplied = await this.applyRules(email, userId);
           }
 
-          if (applyRules) {
-            await this.applyRules(email, userId);
+          // Only classify if no rule was applied (rules take precedence)
+          if (autoClassify && !ruleApplied) {
+            await this.classifyEmail(email, userId);
           }
         } catch (error) {
           console.error(`Error processing email ${email.id}:`, error);
@@ -85,27 +103,55 @@ export class EmailOrganizer {
     // Classify the email
     const classification = await EmailClassifier.classifyEmail(emailContent);
 
-    // Save classification to database
-    await db.emailClassification.create({
-      data: {
-        emailId: email.id,
-        category: classification.category,
-        priority: classification.priority,
-        confidence: classification.confidence,
-        entities: classification.entities,
-        sentiment: classification.sentiment,
-        keywords: classification.keywords,
-        hasActionItems: classification.hasActionItems,
-        actionItems: classification.actionItems,
-        dueDate: classification.dueDate,
-        requiresResponse: classification.requiresResponse,
-        isMeeting: classification.isMeeting,
-        meetingDate: classification.meetingDate,
-        meetingDuration: classification.meetingDuration,
-        clientName: classification.clientName,
-        projectName: classification.projectName,
-      },
+    // Check if classification already exists
+    const existingClassification = await db.emailClassification.findUnique({
+      where: { emailId: email.id },
     });
+
+    // Update or create classification
+    if (existingClassification) {
+      await db.emailClassification.update({
+        where: { emailId: email.id },
+        data: {
+          category: classification.category,
+          priority: classification.priority,
+          confidence: classification.confidence,
+          entities: classification.entities,
+          sentiment: classification.sentiment,
+          keywords: classification.keywords,
+          hasActionItems: classification.hasActionItems,
+          actionItems: classification.actionItems,
+          dueDate: classification.dueDate,
+          requiresResponse: classification.requiresResponse,
+          isMeeting: classification.isMeeting,
+          meetingDate: classification.meetingDate,
+          meetingDuration: classification.meetingDuration,
+          clientName: classification.clientName,
+          projectName: classification.projectName,
+        },
+      });
+    } else {
+      await db.emailClassification.create({
+        data: {
+          emailId: email.id,
+          category: classification.category,
+          priority: classification.priority,
+          confidence: classification.confidence,
+          entities: classification.entities,
+          sentiment: classification.sentiment,
+          keywords: classification.keywords,
+          hasActionItems: classification.hasActionItems,
+          actionItems: classification.actionItems,
+          dueDate: classification.dueDate,
+          requiresResponse: classification.requiresResponse,
+          isMeeting: classification.isMeeting,
+          meetingDate: classification.meetingDate,
+          meetingDuration: classification.meetingDuration,
+          clientName: classification.clientName,
+          projectName: classification.projectName,
+        },
+      });
+    }
 
     // Update email with category and priority
     await db.email.update({
@@ -128,7 +174,7 @@ export class EmailOrganizer {
     );
   }
 
-  static async applyRules(email: any, userId: string) {
+  static async applyRules(email: any, userId: string): Promise<boolean> {
     // Get active rules for this user
     const rules = await db.emailRule.findMany({
       where: {
@@ -142,14 +188,20 @@ export class EmailOrganizer {
 
     for (const rule of rules) {
       if (await this.matchesRule(email, rule)) {
-        await this.applyRule(email, rule);
-        break; // Apply only the first matching rule
+        await this.applyRule(email, rule, userId);
+        return true; // Return true to indicate a rule was applied
       }
     }
+    
+    return false; // No rule matched
   }
 
   private static async matchesRule(email: any, rule: any): Promise<boolean> {
     const conditions = rule.conditions as any[];
+    
+    if (!conditions || conditions.length === 0) {
+      return false; // Rule must have at least one condition
+    }
 
     for (const condition of conditions) {
       const { field, operator, value } = condition;
@@ -157,22 +209,29 @@ export class EmailOrganizer {
       let emailValue: any;
       switch (field) {
         case "subject":
-          emailValue = email.subject;
+          emailValue = email.subject || "";
           break;
         case "from":
-          emailValue = email.from.address;
+          emailValue = email.from?.address || "";
           break;
         case "to":
-          emailValue = email.to.map((addr: any) => addr.address);
+          emailValue = (email.to || []).map((addr: any) => addr?.address || "");
           break;
         case "body":
-          emailValue = email.body || email.bodySnippet;
+          emailValue = email.body || email.bodySnippet || "";
           break;
         case "hasAttachments":
-          emailValue = email.hasAttachments;
+          emailValue = email.hasAttachments || false;
           break;
         default:
           continue;
+      }
+
+      // Skip if emailValue is null/undefined and we're doing a comparison
+      if (emailValue === null || emailValue === undefined) {
+        if (operator !== "not" && operator !== "equals") {
+          return false;
+        }
       }
 
       if (!this.evaluateCondition(emailValue, operator, value)) {
@@ -188,76 +247,112 @@ export class EmailOrganizer {
     operator: string,
     expectedValue: any,
   ): boolean {
+    // Handle null/undefined values
+    if (value === null || value === undefined) {
+      if (operator === "not" || operator === "equals") {
+        return value === expectedValue;
+      }
+      return false;
+    }
+
     switch (operator) {
       case "equals":
+        if (typeof value === "string" && typeof expectedValue === "string") {
+          return value.toLowerCase() === expectedValue.toLowerCase();
+        }
         return value === expectedValue;
       case "contains":
         if (Array.isArray(value)) {
+          const expectedLower = String(expectedValue).toLowerCase();
           return value.some((v: any) =>
-            v.toLowerCase().includes(expectedValue.toLowerCase()),
+            String(v || "").toLowerCase().includes(expectedLower),
           );
         }
-        return value.toLowerCase().includes(expectedValue.toLowerCase());
+        const valStr = String(value || "").toLowerCase();
+        const expectedStr = String(expectedValue || "").toLowerCase();
+        return valStr.includes(expectedStr);
       case "startsWith":
-        return value.toLowerCase().startsWith(expectedValue.toLowerCase());
+        return String(value || "").toLowerCase().startsWith(
+          String(expectedValue || "").toLowerCase()
+        );
       case "endsWith":
-        return value.toLowerCase().endsWith(expectedValue.toLowerCase());
+        return String(value || "").toLowerCase().endsWith(
+          String(expectedValue || "").toLowerCase()
+        );
       case "regex":
-        return new RegExp(expectedValue, "i").test(value);
+        try {
+          return new RegExp(expectedValue, "i").test(String(value || ""));
+        } catch {
+          return false;
+        }
       case "in":
-        return Array.isArray(expectedValue)
-          ? expectedValue.includes(value)
-          : false;
+        if (Array.isArray(expectedValue)) {
+          return expectedValue.map(v => String(v).toLowerCase()).includes(
+            String(value).toLowerCase()
+          );
+        }
+        return false;
       case "not":
+        if (typeof value === "string" && typeof expectedValue === "string") {
+          return value.toLowerCase() !== expectedValue.toLowerCase();
+        }
         return value !== expectedValue;
       default:
         return false;
     }
   }
 
-  private static async applyRule(email: any, rule: any) {
+  private static async applyRule(email: any, rule: any, userId: string) {
     const actions = rule.actions as any[];
+    const updateData: any = {};
 
     for (const action of actions) {
       const { type, value } = action;
 
       switch (type) {
         case "categorize":
-          const categoryId = await this.getOrCreateCategoryId(
-            value,
-            email.thread.account.userId,
-          );
-          await db.email.update({
-            where: { id: email.id },
-            data: { categoryId },
-          });
+          // Handle both category name and categoryId
+          let categoryId: string;
+          if (typeof value === "string" && value.trim() !== "") {
+            // If it's a category name, get or create the category
+            categoryId = await this.getOrCreateCategoryId(value, userId);
+          } else if (value) {
+            categoryId = value;
+          } else {
+            continue; // Skip if invalid value
+          }
+          updateData.categoryId = categoryId;
           break;
 
         case "setPriority":
-          await db.email.update({
-            where: { id: email.id },
-            data: { priority: value },
-          });
+          updateData.priority = value;
           break;
 
         case "setStatus":
-          await db.email.update({
-            where: { id: email.id },
-            data: { status: value },
-          });
+          updateData.status = value;
           break;
 
         case "addLabel":
-          await db.email.update({
-            where: { id: email.id },
-            data: {
-              customLabels: {
-                push: value,
-              },
-            },
-          });
+          // Get existing labels and add new one if not present
+          const currentLabels = email.customLabels || [];
+          if (!currentLabels.includes(value)) {
+            updateData.customLabels = [...currentLabels, value];
+          }
           break;
       }
+    }
+
+    // Update email with all rule actions at once
+    if (Object.keys(updateData).length > 0) {
+      await db.email.update({
+        where: { id: email.id },
+        data: updateData,
+      });
+      
+      console.log(
+        `Applied rule "${rule.name}" to email ${email.id} with actions:`,
+        Object.keys(updateData),
+      );
     }
   }
 

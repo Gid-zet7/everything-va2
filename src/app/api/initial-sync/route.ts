@@ -7,7 +7,7 @@ export const maxDuration = 300;
 export const POST = async (req: NextRequest) => {
   try {
     const user = await getKindeUserForAPI();
-    console.log("initial sync", user);
+    // console.log("initial sync", user);
     if (!user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

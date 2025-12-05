@@ -62,25 +62,30 @@ export class EmailClassifier {
     "cancel",
   ];
 
-  private static readonly MEETING_KEYWORDS = [
+  // Strong meeting indicators (definitive meeting-related terms)
+  private static readonly STRONG_MEETING_KEYWORDS = [
+    "meeting invitation",
+    "calendar invite",
+    "meeting request",
+    "schedule a meeting",
+    "book a meeting",
+    "zoom meeting",
+    "teams meeting",
+    "google meet",
+    "webex meeting",
+    "conference call",
+    "video call",
+    "appointment",
+  ];
+
+  // Weak meeting indicators (can appear in non-meeting contexts)
+  private static readonly WEAK_MEETING_KEYWORDS = [
     "meeting",
     "call",
     "conference",
-    "appointment",
-    "schedule",
-    "calendar",
     "invite",
-    "zoom",
-    "teams",
-    "google meet",
-    "webex",
-    "skype",
-    "discord",
-    "slack call",
     "standup",
     "sync",
-    "review",
-    "discussion",
     "presentation",
     "demo",
   ];
@@ -390,9 +395,33 @@ export class EmailClassifier {
   }
 
   private static extractMeetingInfo(text: string, receivedAt: Date) {
-    const isMeeting = this.MEETING_KEYWORDS.some((keyword) =>
-      text.includes(keyword),
+    // Check for strong meeting indicators (definitive)
+    const hasStrongIndicator = this.STRONG_MEETING_KEYWORDS.some((keyword) =>
+      text.includes(keyword.toLowerCase()),
     );
+
+    // Check for weak indicators
+    const weakMatches = this.WEAK_MEETING_KEYWORDS.filter((keyword) =>
+      text.includes(keyword.toLowerCase()),
+    );
+
+    // Check for calendar/ICS file indicators
+    const hasCalendarIndicator = 
+      text.includes("ics") ||
+      text.includes("calendar") ||
+      text.includes("vcalendar") ||
+      text.includes("when:") ||
+      text.includes("where:") ||
+      text.includes("dtstart") ||
+      text.includes("dtend");
+
+    // Require either:
+    // 1. Strong indicator, OR
+    // 2. Multiple weak indicators (2+) AND calendar indicators, OR
+    // 3. Multiple weak indicators (3+) even without calendar
+    const isMeeting = hasStrongIndicator || 
+      (weakMatches.length >= 2 && hasCalendarIndicator) ||
+      (weakMatches.length >= 3);
 
     if (!isMeeting) {
       return { isMeeting: false };
@@ -430,33 +459,63 @@ export class EmailClassifier {
     meetingInfo: { isMeeting: boolean },
   ): EmailCategoryType {
     const text = `${content.subject} ${content.body}`.toLowerCase();
+    const subject = content.subject.toLowerCase();
 
-    // Check for meetings first
-    if (meetingInfo.isMeeting) {
-      return EmailCategoryType.meetings;
+    // Calculate keyword match scores for better accuracy
+    const financeMatches = this.FINANCE_KEYWORDS.filter((keyword) => 
+      text.includes(keyword)
+    ).length;
+    const clientMatches = this.CLIENT_KEYWORDS.filter((keyword) => 
+      text.includes(keyword)
+    ).length;
+    const waitingMatches = this.WAITING_KEYWORDS.filter((keyword) => 
+      text.includes(keyword)
+    ).length;
+    const actionMatches = this.ACTION_KEYWORDS.filter((keyword) => 
+      text.includes(keyword)
+    ).length;
+
+    // Check for meetings LAST (only if strongly indicated)
+    // This prevents over-categorization as meetings
+    // We'll check meetings at the end, after other categories
+    const isDefiniteMeeting = meetingInfo.isMeeting && (
+      subject.includes("meeting") || 
+      subject.includes("call") || 
+      subject.includes("invite") ||
+      subject.includes("conference") ||
+      text.includes("calendar invite") ||
+      text.includes("meeting request")
+    );
+
+    // Check for action required (prioritize if action items found)
+    if (actionItems.length > 0) {
+      return EmailCategoryType.actionRequired;
     }
 
-    // Check for finance-related emails
-    if (this.FINANCE_KEYWORDS.some((keyword) => text.includes(keyword))) {
+    // Check for finance-related emails (require multiple keyword matches for accuracy)
+    if (financeMatches >= 2 || (financeMatches === 1 && (subject.includes("invoice") || subject.includes("payment")))) {
       return EmailCategoryType.finance;
     }
 
-    // Check for client-related emails
-    if (this.CLIENT_KEYWORDS.some((keyword) => text.includes(keyword))) {
-      return EmailCategoryType.clients;
-    }
-
     // Check for waiting emails
-    if (this.WAITING_KEYWORDS.some((keyword) => text.includes(keyword))) {
+    if (waitingMatches >= 2 || (waitingMatches === 1 && (subject.includes("waiting") || subject.includes("pending")))) {
       return EmailCategoryType.waitingOn;
     }
 
-    // Check for action required
-    if (
-      actionItems.length > 0 ||
-      this.ACTION_KEYWORDS.some((keyword) => text.includes(keyword))
-    ) {
+    // Check for client-related emails
+    if (clientMatches >= 2 || (clientMatches === 1 && (subject.includes("client") || subject.includes("project")))) {
+      return EmailCategoryType.clients;
+    }
+
+    // Check for action required (if action keywords found)
+    if (actionMatches >= 3 || (actionMatches >= 2 && actionItems.length === 0)) {
       return EmailCategoryType.actionRequired;
+    }
+
+    // Check for meetings LAST (only if strongly indicated)
+    // This prevents over-categorization as meetings
+    if (isDefiniteMeeting) {
+      return EmailCategoryType.meetings;
     }
 
     // Default to reference

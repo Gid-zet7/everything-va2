@@ -10,6 +10,7 @@ import { FREE_CREDITS_PER_DAY } from "@/app/constants";
 import { EmailOrganizer } from "@/lib/email-organizer";
 import { checkAccountAuthStatus } from "@/lib/account-utils";
 import { syncEmailOrganizationToProvider } from "@/lib/provider-email-actions";
+import { getValidToken } from "@/lib/token-refresh";
 
 export const authoriseAccountAccess = async (
   accountId: string,
@@ -505,6 +506,7 @@ export const mailRouter = createTRPCRouter({
         autoClassify: z.boolean().optional(),
         createCategories: z.boolean().optional(),
         applyRules: z.boolean().optional(),
+        reorganize: z.boolean().optional(), // If true, re-organize all emails including already classified ones
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -519,6 +521,7 @@ export const mailRouter = createTRPCRouter({
         autoClassify: input.autoClassify,
         createCategories: input.createCategories,
         applyRules: input.applyRules,
+        reorganize: input.reorganize,
       });
     }),
 
@@ -810,5 +813,148 @@ export const mailRouter = createTRPCRouter({
       }
 
       return { updatedCount: result.count };
+    }),
+
+  pushCategoriesToEmailProvider: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const account = await authoriseAccountAccess(
+        input.accountId,
+        ctx.auth.id,
+      );
+
+      // Check if account has a valid token before processing
+      const hasValidToken = await getValidToken(account.id);
+      
+      if (!hasValidToken) {
+        // Check if account has a refresh token at all
+        const accountWithToken = await ctx.db.account.findUnique({
+          where: { id: account.id },
+          select: { refreshToken: true },
+        });
+        
+        if (!accountWithToken?.refreshToken) {
+          return {
+            success: false,
+            processedCount: 0,
+            successCount: 0,
+            errorCount: 0,
+            errors: ["Account needs re-authorization. Please re-authorize your email account before pushing categories."],
+            needsReauth: true,
+          };
+        }
+      }
+
+      // Get all emails with categories for this account
+      const emails = await ctx.db.email.findMany({
+        where: {
+          thread: {
+            accountId: account.id,
+          },
+          categoryId: {
+            not: null,
+          },
+        },
+        include: {
+          category: true,
+        },
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+      let hasAuthError = false;
+
+      // Process emails in batches to avoid overwhelming the API
+      const batchSize = 10;
+      for (let i = 0; i < emails.length; i += batchSize) {
+        const batch = emails.slice(i, i + batchSize);
+        
+        await Promise.all(
+          batch.map(async (email) => {
+            if (!email.category) return;
+            
+            try {
+              // Get existing labels and add category name if not already present
+              const existingLabels = email.keywords || [];
+              const categoryLabel = email.category.name;
+              
+              // Only add if not already present
+              if (!existingLabels.includes(categoryLabel)) {
+                const updatedLabels = [...existingLabels, categoryLabel];
+                
+                // Update the email in database with new labels
+                await ctx.db.email.update({
+                  where: { id: email.id },
+                  data: {
+                    keywords: updatedLabels,
+                    customLabels: updatedLabels,
+                  },
+                });
+              }
+
+              // Try to push to email provider (update DB first so data is consistent)
+              try {
+                const labelsToPush = existingLabels.includes(categoryLabel) 
+                  ? existingLabels 
+                  : [...existingLabels, categoryLabel];
+                
+                await syncEmailOrganizationToProvider({
+                  accountId: account.id,
+                  emailProviderId: email.id,
+                  customLabels: labelsToPush,
+                });
+                successCount++;
+              } catch (syncError) {
+                // If it's an auth error, mark it but don't log every single one
+                if (syncError instanceof Error && syncError.message.includes("No valid provider token")) {
+                  hasAuthError = true;
+                } else {
+                  const errorMessage = `Failed to push label for email ${email.id}: ${syncError instanceof Error ? syncError.message : "Unknown error"}`;
+                  errors.push(errorMessage);
+                }
+                errorCount++;
+              }
+            } catch (error) {
+              errorCount++;
+              const errorMessage = `Failed to process email ${email.id}: ${error instanceof Error ? error.message : "Unknown error"}`;
+              errors.push(errorMessage);
+            }
+          }),
+        );
+        
+        // If we encountered auth errors, stop processing to avoid spam
+        if (hasAuthError && errorCount > 0) {
+          break;
+        }
+      }
+
+      // If we had auth errors, add a summary message instead of listing all errors
+      if (hasAuthError) {
+        return {
+          success: false,
+          processedCount: emails.length,
+          successCount,
+          errorCount: emails.length - successCount,
+          errors: [
+            `Unable to push categories to email provider: Account needs re-authorization. Please re-authorize your email account and try again. ${successCount > 0 ? `${successCount} email${successCount !== 1 ? "s" : ""} updated in database.` : ""}`.trim(),
+            ...errors.slice(0, 5), // Include up to 5 non-auth errors if any
+          ],
+          needsReauth: true,
+        };
+      }
+
+      return {
+        success: errorCount === 0,
+        processedCount: emails.length,
+        successCount,
+        errorCount,
+        errors: errors.length > 0 ? errors.slice(0, 20) : undefined, // Limit error output
+        needsReauth: false,
+      };
     }),
 });

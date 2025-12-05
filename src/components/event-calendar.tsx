@@ -136,13 +136,13 @@ export function EventCalendar({
   }
 
   const handleEventSelect = (event: CalendarEvent) => {
-    console.log("Event selected:", event) // Debug log
+    // console.log("Event selected:", event) 
     setSelectedEvent(event)
     setIsEventDialogOpen(true)
   }
 
   const handleEventCreate = (startTime: Date) => {
-    console.log("Creating new event at:", startTime) // Debug log
+    // console.log("Creating new event at:", startTime) 
 
     // Snap to 15-minute intervals
     const minutes = startTime.getMinutes()
@@ -179,7 +179,7 @@ export function EventCalendar({
         position: "bottom-left",
       })
     } else {
-      console.log("Creating new event:", event) // Debug log
+      // console.log("Creating new event:", event) 
       onEventAdd?.({
         ...event,
         id: Math.random().toString(36).substring(2, 11),

@@ -77,7 +77,7 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
 
   const { data: stats = [], refetch: refetchStats } =
     api.mail.getEmailStats.useQuery({ accountId }, { enabled: !!accountId });
-    console.log("stats", stats);
+    // console.log("stats", stats);
 
   const { data: rules = [], refetch: refetchRules } =
     api.mail.getEmailRules.useQuery({ accountId }, { enabled: !!accountId });
@@ -135,6 +135,7 @@ export function EmailOrganizer({ accountId }: EmailOrganizerProps) {
       autoClassify: true,
       createCategories: true,
       applyRules: true,
+      reorganize: true, // Always re-organize to allow re-processing all emails
     });
   };
 

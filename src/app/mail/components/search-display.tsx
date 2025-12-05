@@ -23,7 +23,7 @@ const SearchDisplay = () => {
 
   React.useEffect(() => {
     if (!debouncedSearch || !accountId) return;
-    console.log({ accountId, debouncedSearch });
+    // console.log({ accountId, debouncedSearch });
     search.mutate({ accountId, query: debouncedSearch });
   }, [debouncedSearch, accountId]);
 

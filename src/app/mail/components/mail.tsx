@@ -22,6 +22,7 @@ import { useAtom } from "jotai";
 import AskAI from "./ask-ai";
 import { EmailOrganizer } from "./email-organizer";
 import AuthoriseButton from "@/components/authorise-button";
+import PushCategoriesButton from "@/components/push-categories-button";
 
 interface MailProps {
   defaultLayout: number[] | undefined;
@@ -159,6 +160,15 @@ export function Mail({
                   </p>
                 </div>
                 <AuthoriseButton />
+                <div className="mt-6 border-t pt-6">
+                  <div className="mb-4 text-center">
+                    <h3 className="text-lg font-semibold">Email Organization</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Push organizer categories as labels to your email provider
+                    </p>
+                  </div>
+                  <PushCategoriesButton />
+                </div>
               </div>
             </div>
           ) : (

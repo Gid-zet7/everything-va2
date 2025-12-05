@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         return new NextResponse("webhook error", { status: 400 });
     }
 
-    console.log(event.type)
+    // console.log(event.type)
 
     // new subscription created
     if (event.type === "checkout.session.completed") {

@@ -31,10 +31,10 @@ export function AccountSwitcher({ isCollapsed }: AccountSwitcherProps) {
 
   React.useEffect(() => {
     if (!mounted) return;
-    console.log("AccountSwitcher debug:", { accounts, accountId });
+    // console.log("AccountSwitcher debug:", { accounts, accountId });
     if (accounts && accounts.length > 0) {
       if (accountId) return;
-      console.log("Setting first account as default:", accounts[0]!.id);
+      // console.log("Setting first account as default:", accounts[0]!.id);
       setAccountId(accounts[0]!.id);
     } else if (accounts && accounts.length === 0) {
       toast("Link an account to continue", {

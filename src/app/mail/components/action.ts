@@ -7,7 +7,7 @@ import { createStreamableValue } from 'ai/rsc';
 export async function generate(input: string) {
     const stream = createStreamableValue('');
 
-    console.log("input", input);
+    // console.log("input", input);
     (async () => {
         const { textStream } = await streamText({
             model: openai('gpt-4o-mini'),
